@@ -10,7 +10,7 @@ interface DataContextType {
   createJob: (jobData: Omit<Job, 'id' | 'createdAt'>) => void;
   applyToJob: (jobId: string, userId: string) => void;
   sendMessage: (message: Omit<Message, 'id' | 'timestamp'>) => void;
-  updateJobStatus: (jobId: string, status: string) => void;
+  updateJobStatus: (jobId: string, status: 'open' | 'closed' | 'archived') => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -57,7 +57,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setMessages(prev => [newMessage, ...prev]);
   };
 
-  const updateJobStatus = (jobId: string, status: string) => {
+  const updateJobStatus = (jobId: string, status: 'open' | 'closed' | 'archived') => {
     setJobs(prev => prev.map(job => 
       job.id === jobId ? { ...job, status } : job
     ));

@@ -45,7 +45,7 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ user, jobs, applica
     category: '',
     salaryFrom: '',
     salaryTo: '',
-    contractType: 'full-time',
+    contractType: 'full-time' as 'full-time' | 'part-time' | 'contract' | 'temporary',
     location: '',
     requirements: '',
     benefits: ''
@@ -91,7 +91,7 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ user, jobs, applica
       category: '',
       salaryFrom: '',
       salaryTo: '',
-      contractType: 'full-time',
+      contractType: 'full-time' as 'full-time' | 'part-time' | 'contract' | 'temporary',
       location: '',
       requirements: '',
       benefits: ''
@@ -204,7 +204,12 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ user, jobs, applica
                   
                   <div className="space-y-2">
                     <Label htmlFor="contract-type">Tipo de Contrato</Label>
-                    <Select value={newJob.contractType} onValueChange={(value) => setNewJob({...newJob, contractType: value})}>
+                    <Select 
+                      value={newJob.contractType} 
+                      onValueChange={(value: 'full-time' | 'part-time' | 'contract' | 'temporary') => 
+                        setNewJob({...newJob, contractType: value})
+                      }
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
