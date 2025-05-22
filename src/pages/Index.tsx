@@ -192,7 +192,7 @@ const Index = () => {
               </Button>
             </Link>
             <Link to="/register?type=company">
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-blue-600 px-8 py-4">
+              <Button size="lg" variant="outline" className="border-white bg-blue-500 text-white hover:bg-white hover:text-blue-600 px-8 py-4">
                 <Building className="mr-2 h-5 w-5" />
                 Registrar mi Empresa
               </Button>
