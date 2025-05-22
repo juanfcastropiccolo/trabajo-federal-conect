@@ -15,9 +15,9 @@ const Jobs = () => {
   const { jobs, applyToJob, applications } = useData();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
-  const [locationFilter, setLocationFilter] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [contractTypeFilter, setContractTypeFilter] = useState('');
+  const [locationFilter, setLocationFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [contractTypeFilter, setContractTypeFilter] = useState('all');
 
   const userApplications = applications.filter(app => app.userId === user?.id);
 
@@ -26,9 +26,9 @@ const Jobs = () => {
                          job.company?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          job.description.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesLocation = !locationFilter || job.location.toLowerCase().includes(locationFilter.toLowerCase());
-    const matchesCategory = !categoryFilter || job.category === categoryFilter;
-    const matchesContractType = !contractTypeFilter || job.contractType === contractTypeFilter;
+    const matchesLocation = locationFilter === 'all' || job.location.toLowerCase().includes(locationFilter.toLowerCase());
+    const matchesCategory = categoryFilter === 'all' || job.category === categoryFilter;
+    const matchesContractType = contractTypeFilter === 'all' || job.contractType === contractTypeFilter;
 
     return matchesSearch && matchesLocation && matchesCategory && matchesContractType && job.status === 'open';
   });
@@ -77,7 +77,7 @@ const Jobs = () => {
                   <SelectValue placeholder="Ubicación" />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
-                  <SelectItem value="">Todas las ubicaciones</SelectItem>
+                  <SelectItem value="all">Todas las ubicaciones</SelectItem>
                   {locations.map(location => (
                     <SelectItem key={location} value={location}>{location}</SelectItem>
                   ))}
@@ -89,7 +89,7 @@ const Jobs = () => {
                   <SelectValue placeholder="Categoría" />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
-                  <SelectItem value="">Todas las categorías</SelectItem>
+                  <SelectItem value="all">Todas las categorías</SelectItem>
                   {categories.map(category => (
                     <SelectItem key={category} value={category}>
                       {category.charAt(0).toUpperCase() + category.slice(1)}
@@ -103,7 +103,7 @@ const Jobs = () => {
                   <SelectValue placeholder="Tipo de trabajo" />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
-                  <SelectItem value="">Todos los tipos</SelectItem>
+                  <SelectItem value="all">Todos los tipos</SelectItem>
                   <SelectItem value="full-time">Tiempo Completo</SelectItem>
                   <SelectItem value="part-time">Medio Tiempo</SelectItem>
                   <SelectItem value="contract">Por Contrato</SelectItem>
@@ -151,9 +151,9 @@ const Jobs = () => {
                   variant="outline" 
                   onClick={() => {
                     setSearchTerm('');
-                    setLocationFilter('');
-                    setCategoryFilter('');
-                    setContractTypeFilter('');
+                    setLocationFilter('all');
+                    setCategoryFilter('all');
+                    setContractTypeFilter('all');
                   }}
                 >
                   Limpiar Filtros
