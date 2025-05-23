@@ -2,38 +2,17 @@
 import { useState, useEffect, useRef } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Loader2, MapPin, CheckCircle, AlertTriangle } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
+import { LocationService, Province, City } from "@/services/api/locationService";
 import { analytics } from "@/utils/analytics";
-import { LocationService } from "@/services/api/locationService";
-
-interface Province {
-  id: string;
-  nombre: string;
-}
-
-interface City {
-  id: string;
-  nombre: string;
-  provincia: {
-    id: string;
-    nombre: string;
-  };
-}
 
 interface LocationAutocompleteProps {
   provinceValue: string;
   cityValue: string;
-  onProvinceChange: (value: string) => void;
-  onCityChange: (value: string) => void;
-  onCitySelect?: (city: City | null) => void;
+  onProvinceChange: (province: string) => void;
+  onCityChange: (city: string) => void;
   className?: string;
 }
 
@@ -42,168 +21,135 @@ export function LocationAutocomplete({
   cityValue,
   onProvinceChange,
   onCityChange,
-  onCitySelect,
   className
 }: LocationAutocompleteProps) {
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [cities, setCities] = useState<City[]>([]);
-  const [filteredCities, setFilteredCities] = useState<City[]>([]);
+  const [searchResults, setSearchResults] = useState<City[]>([]);
   const [isLoadingProvinces, setIsLoadingProvinces] = useState(false);
   const [isLoadingCities, setIsLoadingCities] = useState(false);
-  const [showCitiesDropdown, setShowCitiesDropdown] = useState(false);
-  const [selectedProvinceName, setSelectedProvinceName] = useState("");
-  const [selectedCityObject, setSelectedCityObject] = useState<City | null>(null);
-  const [citySearchText, setCitySearchText] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [citySearchQuery, setCitySearchQuery] = useState("");
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
   
-  const citiesDropdownRef = useRef<HTMLDivElement>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // Fetch provinces on component mount
+  const cityInputRef = useRef<HTMLInputElement>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // Load provinces on mount
   useEffect(() => {
-    fetchProvinces();
+    loadProvinces();
   }, []);
-  
-  // Fetch cities when province changes
+
+  // Load cities when province changes
   useEffect(() => {
     if (provinceValue) {
-      fetchCities(provinceValue);
-      
-      // Find the province name
-      const province = provinces.find(p => p.id === provinceValue);
-      if (province) {
-        setSelectedProvinceName(province.nombre);
-      }
+      loadCitiesForProvince(provinceValue);
     } else {
       setCities([]);
-      setFilteredCities([]);
     }
-  }, [provinceValue, provinces]);
+  }, [provinceValue]);
 
-  // Update citySearchText when cityValue changes from parent
+  // Set city search query when cityValue changes
   useEffect(() => {
-    setCitySearchText(cityValue);
-  }, [cityValue]);
-  
-  // Filter cities based on search text
-  useEffect(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    
-    if (citySearchText.length >= 2) {
-      timeoutRef.current = setTimeout(() => {
-        const filtered = cities.filter(city => 
-          city.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-          .includes(citySearchText.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""))
-        );
-        setFilteredCities(filtered.slice(0, 10));
-        setShowCitiesDropdown(true);
-      }, 300);
+    if (cityValue) {
+      const selectedCity = cities.find(c => c.nombre === cityValue) || 
+                          searchResults.find(c => c.nombre === cityValue);
+      if (selectedCity) {
+        setCitySearchQuery(selectedCity.nombre);
+      }
     } else {
-      setFilteredCities([]);
-      setShowCitiesDropdown(false);
+      setCitySearchQuery("");
     }
-    
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, [citySearchText, cities]);
-  
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (citiesDropdownRef.current && !citiesDropdownRef.current.contains(event.target as Node)) {
-        setShowCitiesDropdown(false);
-      }
-    };
-    
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-  
-  const fetchProvinces = async () => {
+  }, [cityValue, cities, searchResults]);
+
+  const loadProvinces = async () => {
     setIsLoadingProvinces(true);
-    setError(null);
-    
     try {
       const fetchedProvinces = await LocationService.getProvinces();
       console.log("Fetched provinces:", fetchedProvinces);
       setProvinces(fetchedProvinces);
     } catch (err) {
       console.error('Error fetching provinces:', err);
-      setError('No se pudieron cargar las provincias. Por favor, intenta nuevamente.');
-      setProvinces(LocationService.getMockProvinces());
     } finally {
       setIsLoadingProvinces(false);
     }
   };
-  
-  const fetchCities = async (provinceId: string) => {
-    if (!provinceId) return;
-    
+
+  const loadCitiesForProvince = async (provinceId: string) => {
     setIsLoadingCities(true);
-    setError(null);
-    
     try {
       const fetchedCities = await LocationService.getCitiesByProvince(provinceId);
       setCities(fetchedCities);
     } catch (err) {
-      console.error('Error fetching cities:', err);
-      setError('No se pudieron cargar las localidades. Por favor, intenta nuevamente.');
-      setCities(LocationService.getMockCitiesForProvince(provinceId));
+      console.error('Error fetching cities for province:', provinceId, err);
     } finally {
       setIsLoadingCities(false);
     }
   };
-  
+
+  const searchCitiesGlobally = async (query: string) => {
+    if (query.length < 3) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const results = await LocationService.searchCities(query);
+      setSearchResults(results);
+    } catch (err) {
+      console.error('Error searching cities:', err);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
   const handleProvinceChange = (value: string) => {
     console.log("Province selected:", value);
     analytics.trackFormField('location', 'province', 'select', value);
     onProvinceChange(value);
     onCityChange('');
-    setCitySearchText('');
-    setSelectedCityObject(null);
-    if (onCitySelect) onCitySelect(null);
+    setCitySearchQuery("");
+    setSearchResults([]);
   };
-  
-  const handleCityInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setCitySearchText(value);
-    onCityChange(value);
-    
-    if (!value) {
-      setSelectedCityObject(null);
-      if (onCitySelect) onCitySelect(null);
+
+  const handleCitySearch = (query: string) => {
+    setCitySearchQuery(query);
+    setShowCityDropdown(true);
+
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
     }
-    
-    analytics.trackFormField('location', 'city', 'change', value);
+
+    // Debounce search
+    searchTimeoutRef.current = setTimeout(() => {
+      searchCitiesGlobally(query);
+    }, 300);
   };
-  
-  const handleCitySelect = (city: City) => {
-    setCitySearchText(city.nombre);
-    onCityChange(city.nombre);
-    setSelectedCityObject(city);
-    setShowCitiesDropdown(false);
-    if (onCitySelect) onCitySelect(city);
-    
-    analytics.trackFormField('location', 'city', 'select', city.nombre);
+
+  const handleCitySelect = (cityName: string) => {
+    setCitySearchQuery(cityName);
+    onCityChange(cityName);
+    setShowCityDropdown(false);
+    analytics.trackFormField('location', 'city', 'select', cityName);
   };
+
+  const getDisplayCities = () => {
+    if (citySearchQuery.length >= 3 && searchResults.length > 0) {
+      return searchResults;
+    }
+    return cities;
+  };
+
+  const selectedProvince = provinces.find(p => p.id === provinceValue);
 
   return (
     <div className={cn("space-y-4", className)}>
-      {/* Province Selection */}
       <div className="space-y-2">
         <Label htmlFor="province">Provincia</Label>
-        <Select 
-          value={provinceValue} 
-          onValueChange={handleProvinceChange} 
-          defaultValue=""
-        >
+        <Select value={provinceValue} onValueChange={handleProvinceChange}>
           <SelectTrigger id="province" className={cn(provinceValue ? "" : "text-muted-foreground")}>
             <SelectValue placeholder="Selecciona una provincia" />
           </SelectTrigger>
@@ -211,142 +157,78 @@ export function LocationAutocomplete({
             {isLoadingProvinces ? (
               <div className="flex items-center justify-center p-2">
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                <span>Cargando provincias...</span>
+                <span className="text-sm">Cargando provincias...</span>
               </div>
-            ) : provinces.length > 0 ? (
+            ) : (
               provinces.map((province) => (
                 <SelectItem key={province.id} value={province.id}>
                   {province.nombre}
                 </SelectItem>
               ))
-            ) : (
-              <div className="p-2 text-center text-sm">No se encontraron provincias</div>
             )}
           </SelectContent>
         </Select>
       </div>
-      
-      {/* City Autocomplete */}
+
       <div className="space-y-2">
         <Label htmlFor="city">
-          Ciudad / Localidad
-          {provinceValue && isLoadingCities && (
-            <Loader2 size={16} className="inline ml-2 animate-spin text-blue-500" />
+          Ciudad/Localidad
+          {selectedProvince && (
+            <span className="text-xs text-gray-500 ml-2">
+              (Escribí al menos 3 letras para buscar)
+            </span>
           )}
         </Label>
-        <div className="relative" ref={citiesDropdownRef}>
+        <div className="relative">
           <div className="relative">
+            <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
             <Input
+              ref={cityInputRef}
               id="city"
-              placeholder={provinceValue ? "Ingresá tu ciudad o localidad" : "Primero seleccioná una provincia"}
-              value={citySearchText}
-              onChange={handleCityInputChange}
-              onFocus={() => citySearchText.length >= 2 && setShowCitiesDropdown(true)}
-              disabled={!provinceValue || isLoadingCities}
-              className={cn(
-                selectedCityObject && "pr-10",
-                !provinceValue && "bg-gray-50"
-              )}
+              placeholder={selectedProvince ? "Escribí el nombre de tu ciudad..." : "Primero seleccioná una provincia"}
+              value={citySearchQuery}
+              onChange={(e) => handleCitySearch(e.target.value)}
+              onFocus={() => setShowCityDropdown(true)}
+              disabled={!selectedProvince}
+              className="pl-10"
             />
-            {selectedCityObject && (
-              <CheckCircle className="absolute right-3 top-2.5 h-5 w-5 text-green-500" />
-            )}
           </div>
           
-          {/* Dropdown for cities */}
-          {showCitiesDropdown && provinceValue && (
-            <div className="absolute w-full mt-1 max-h-60 overflow-auto z-10 bg-white border rounded-md shadow-lg">
-              {filteredCities.length > 0 ? (
-                filteredCities.map((city) => (
-                  <div
-                    key={city.id}
-                    className="px-3 py-2 cursor-pointer hover:bg-gray-100 flex items-center"
-                    onClick={() => handleCitySelect(city)}
-                  >
-                    <MapPin size={16} className="mr-2 text-gray-500" />
-                    <div>
-                      <div>{city.nombre}</div>
-                      <div className="text-xs text-gray-500">{city.provincia.nombre}</div>
-                    </div>
-                  </div>
-                ))
-              ) : citySearchText.length >= 2 ? (
-                <div className="p-3 text-center text-sm text-gray-500">
-                  No se encontraron localidades
+          {showCityDropdown && selectedProvince && (
+            <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-[200px] overflow-y-auto">
+              {isSearching || isLoadingCities ? (
+                <div className="flex items-center justify-center p-3">
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <span className="text-sm">Buscando ciudades...</span>
+                </div>
+              ) : citySearchQuery.length < 3 ? (
+                <div className="p-3 text-sm text-gray-500 text-center">
+                  Escribí al menos 3 letras para buscar ciudades
+                </div>
+              ) : getDisplayCities().length === 0 ? (
+                <div className="p-3 text-sm text-gray-500 text-center">
+                  No se encontraron ciudades
                 </div>
               ) : (
-                <div className="p-3 text-center text-sm text-gray-500">
-                  Ingresá al menos 2 letras para buscar
-                </div>
+                getDisplayCities().map((city) => (
+                  <button
+                    key={city.id}
+                    type="button"
+                    className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm border-b border-gray-100 last:border-b-0"
+                    onClick={() => handleCitySelect(city.nombre)}
+                  >
+                    <div className="font-medium">{city.nombre}</div>
+                    <div className="text-xs text-gray-500">
+                      {city.provincia.nombre}
+                      {city.departamento && ` • ${city.departamento.nombre}`}
+                    </div>
+                  </button>
+                ))
               )}
             </div>
           )}
         </div>
-        
-        {error && (
-          <div className="mt-2 flex items-center text-amber-600 text-sm">
-            <AlertTriangle size={16} className="mr-1" />
-            <span>{error}</span>
-          </div>
-        )}
-        
-        {provinceValue && !cityValue && !isLoadingCities && cities.length > 0 && (
-          <p className="text-xs text-muted-foreground">
-            {cities.length} localidades disponibles en {selectedProvinceName}
-          </p>
-        )}
       </div>
     </div>
   );
 }
-
-// Mock data for fallback if API fails
-const mockProvinces: Province[] = [
-  { id: "06", nombre: "Buenos Aires" },
-  { id: "02", nombre: "Ciudad Autónoma de Buenos Aires" },
-  { id: "14", nombre: "Córdoba" },
-  { id: "22", nombre: "Chaco" },
-  { id: "26", nombre: "Chubut" },
-  { id: "18", nombre: "Corrientes" },
-  { id: "30", nombre: "Entre Ríos" },
-  { id: "34", nombre: "Formosa" },
-  { id: "38", nombre: "Jujuy" },
-  { id: "42", nombre: "La Pampa" },
-  { id: "46", nombre: "La Rioja" },
-  { id: "50", nombre: "Mendoza" },
-  { id: "54", nombre: "Misiones" },
-  { id: "58", nombre: "Neuquén" },
-  { id: "62", nombre: "Río Negro" },
-  { id: "66", nombre: "Salta" },
-  { id: "70", nombre: "San Juan" },
-  { id: "74", nombre: "San Luis" },
-  { id: "78", nombre: "Santa Cruz" },
-  { id: "82", nombre: "Santa Fe" },
-  { id: "86", nombre: "Santiago del Estero" },
-  { id: "94", nombre: "Tierra del Fuego" },
-  { id: "90", nombre: "Tucumán" }
-];
-
-// Sample mock cities for major provinces (partial data for fallback)
-const mockCitiesByProvince: Record<string, City[]> = {
-  "06": [ // Buenos Aires
-    { id: "06007", nombre: "La Plata", provincia: { id: "06", nombre: "Buenos Aires" } },
-    { id: "06357", nombre: "Mar del Plata", provincia: { id: "06", nombre: "Buenos Aires" } },
-    { id: "06490", nombre: "Quilmes", provincia: { id: "06", nombre: "Buenos Aires" } },
-    { id: "06269", nombre: "La Matanza", provincia: { id: "06", nombre: "Buenos Aires" } },
-    { id: "06410", nombre: "Morón", provincia: { id: "06", nombre: "Buenos Aires" } }
-  ],
-  "02": [ // CABA
-    { id: "02001", nombre: "Ciudad Autónoma de Buenos Aires", provincia: { id: "02", nombre: "Ciudad Autónoma de Buenos Aires" } }
-  ],
-  "14": [ // Córdoba
-    { id: "14014", nombre: "Córdoba", provincia: { id: "14", nombre: "Córdoba" } },
-    { id: "14126", nombre: "Río Cuarto", provincia: { id: "14", nombre: "Córdoba" } },
-    { id: "14147", nombre: "Villa María", provincia: { id: "14", nombre: "Córdoba" } }
-  ],
-  "50": [ // Mendoza
-    { id: "50091", nombre: "Mendoza", provincia: { id: "50", nombre: "Mendoza" } },
-    { id: "50028", nombre: "Godoy Cruz", provincia: { id: "50", nombre: "Mendoza" } },
-    { id: "50007", nombre: "San Rafael", provincia: { id: "50", nombre: "Mendoza" } }
-  ]
-};

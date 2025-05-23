@@ -35,10 +35,11 @@ export function CUITValidation({ value, onChange, onValidationResult, className 
   const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout | null>(null);
 
   // Format CUIT to XX-XXXXXXXX-X pattern
-  const formatCUIT = (cuit: string): string => {
-    // Remove non-numeric characters
-    const numericValue = cuit.replace(/\D/g, '');
+  const formatCUIT = (input: string): string => {
+    // Remove all non-numeric characters
+    const numericValue = input.replace(/\D/g, '');
     
+    // Apply formatting based on length
     if (numericValue.length <= 2) {
       return numericValue;
     } else if (numericValue.length <= 10) {
@@ -107,20 +108,25 @@ export function CUITValidation({ value, onChange, onValidationResult, className 
     }
   };
 
-  // Handle change and format input
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("CUIT input value:", e.target.value);
-    const formatted = formatCUIT(e.target.value);
-    console.log("Formatted CUIT:", formatted);
-    onChange(formatted); // Ensure this is called to update the parent component
+  // Handle input change with simplified formatting
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const inputValue = e.target.value;
+    console.log("CUIT input value:", inputValue);
     
-    // Clear previous timeout
+    // Format the input
+    const formattedValue = formatCUIT(inputValue);
+    console.log("Formatted CUIT:", formattedValue);
+    
+    // Update parent component immediately
+    onChange(formattedValue);
+    
+    // Clear previous validation timeout
     if (timeoutId) {
       clearTimeout(timeoutId);
     }
     
-    // Reset validation if emptying the field
-    if (!e.target.value) {
+    // Reset validation if field is empty
+    if (!inputValue.trim()) {
       setValidationState('idle');
       setValidationResult(null);
       if (onValidationResult) {
@@ -129,14 +135,14 @@ export function CUITValidation({ value, onChange, onValidationResult, className 
       return;
     }
     
-    // Check if CUIT has complete format
-    const cleanCUIT = formatted.replace(/\D/g, '');
+    // Check if CUIT has complete format (11 digits)
+    const cleanCUIT = formattedValue.replace(/\D/g, '');
     if (cleanCUIT.length === 11) {
-      if (isCUITFormatValid(cleanCUIT)) {
+      if (isCUITFormatValid(formattedValue)) {
         // Set debounce for validation
         const newTimeoutId = setTimeout(() => {
-          validateCUIT(formatted);
-        }, 500);
+          validateCUIT(formattedValue);
+        }, 800);
         setTimeoutId(newTimeoutId);
       } else {
         setValidationState('invalid');
@@ -149,7 +155,7 @@ export function CUITValidation({ value, onChange, onValidationResult, className 
         }
       }
     } else {
-      // Reset validation if incomplete
+      // Reset validation for incomplete CUIT
       setValidationState('idle');
       setValidationResult(null);
       if (onValidationResult) {
@@ -158,9 +164,9 @@ export function CUITValidation({ value, onChange, onValidationResult, className 
     }
   };
 
+  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
-      // Cleanup timeout on unmount
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
@@ -197,15 +203,17 @@ export function CUITValidation({ value, onChange, onValidationResult, className 
       <div className="relative">
         <Input
           id="cuit"
+          type="text"
           placeholder="XX-XXXXXXXX-X"
           value={value}
-          onChange={handleChange}
+          onChange={handleInputChange}
           className={cn(
             validationState === 'valid' && "border-green-500 pr-10",
             validationState === 'invalid' && "border-red-500 pr-10",
             validationState === 'error' && "border-amber-500 pr-10"
           )}
           maxLength={13}
+          autoComplete="off"
         />
         
         {validationState === 'valid' && (
