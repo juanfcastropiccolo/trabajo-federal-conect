@@ -73,6 +73,7 @@ export function CUITValidation({ value, onChange, onValidationResult, className 
   };
 
   const validateCUIT = async (cuit: string) => {
+    console.log("Validating CUIT:", cuit);
     setValidationState('validating');
     
     try {
@@ -81,6 +82,7 @@ export function CUITValidation({ value, onChange, onValidationResult, className 
       const result = await AFIPService.validateCUIT(cuit);
       const duration = performance.now() - startTime;
       
+      console.log("CUIT validation result:", result);
       analytics.trackApiRequest('afip/validate-cuit', result.isValid, Math.round(duration));
       
       setValidationResult(result);
@@ -107,7 +109,9 @@ export function CUITValidation({ value, onChange, onValidationResult, className 
 
   // Handle change and format input
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("CUIT input value:", e.target.value);
     const formatted = formatCUIT(e.target.value);
+    console.log("Formatted CUIT:", formatted);
     onChange(formatted); // Ensure this is called to update the parent component
     
     // Clear previous timeout

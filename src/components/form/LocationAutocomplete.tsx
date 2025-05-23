@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -131,6 +132,7 @@ export function LocationAutocomplete({
     
     try {
       const fetchedProvinces = await LocationService.getProvinces();
+      console.log("Fetched provinces:", fetchedProvinces);
       setProvinces(fetchedProvinces);
     } catch (err) {
       console.error('Error fetching provinces:', err);
@@ -160,6 +162,7 @@ export function LocationAutocomplete({
   };
   
   const handleProvinceChange = (value: string) => {
+    console.log("Province selected:", value);
     analytics.trackFormField('location', 'province', 'select', value);
     onProvinceChange(value);
     onCityChange('');
@@ -204,7 +207,7 @@ export function LocationAutocomplete({
           <SelectTrigger id="province" className={cn(provinceValue ? "" : "text-muted-foreground")}>
             <SelectValue placeholder="Selecciona una provincia" />
           </SelectTrigger>
-          <SelectContent className="bg-white max-h-[300px]">
+          <SelectContent className="bg-white max-h-[300px] overflow-y-auto">
             {isLoadingProvinces ? (
               <div className="flex items-center justify-center p-2">
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
