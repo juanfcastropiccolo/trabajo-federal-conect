@@ -1,5 +1,4 @@
-
-// src/services/authService.ts - OPTIMIZADO PARA FUNCIONAR CON RLS
+// src/services/authService.ts - OPTIMIZADO PARA MANEJAR TIMING DE TRIGGERS
 import { supabase } from '@/integrations/supabase/client';
 import type { User, AuthError } from '@supabase/supabase-js';
 import type { User as AppUser, UserRole } from '@/types';
@@ -28,7 +27,7 @@ export interface AuthResponse {
 
 class AuthService {
   /**
-   * REGISTRO OPTIMIZADO CON RLS
+   * REGISTRO OPTIMIZADO CON MEJOR MANEJO DE TIMING
    */
   async register(data: RegisterData): Promise<AuthResponse> {
     try {
@@ -66,10 +65,15 @@ class AuthService {
       console.log('✅ REGISTER - Usuario creado en Auth:', authData.user.id);
 
       // PASO 2: Esperar a que el trigger cree el usuario en la tabla users
-      await this.waitForUserCreation(authData.user.id);
+      const userCreated = await this.waitForUserCreation(authData.user.id);
+      
+      if (!userCreated) {
+        console.warn('⚠️ REGISTER - Usuario no encontrado en tabla users, creando manualmente');
+        await this.createUserManually(authData.user, data);
+      }
 
-      // PASO 3: Crear perfiles específicos con políticas RLS habilitadas
-      await this.createUserProfiles(authData.user.id, data);
+      // PASO 3: Crear perfiles específicos con reintentos
+      await this.createUserProfilesWithRetry(authData.user.id, data);
 
       // PASO 4: Cargar datos completos del usuario
       const appUser = await this.loadUserDataOptimized(authData.user);
@@ -89,7 +93,7 @@ class AuthService {
   /**
    * Esperar a que el trigger cree el usuario en la tabla users
    */
-  private async waitForUserCreation(userId: string, maxAttempts: number = 10): Promise<void> {
+  private async waitForUserCreation(userId: string, maxAttempts: number = 15): Promise<boolean> {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         const { data, error } = await supabase
@@ -100,43 +104,91 @@ class AuthService {
 
         if (data) {
           console.log('✅ WAIT_USER - Usuario encontrado en tabla users');
-          return;
+          return true;
         }
 
         if (attempt === maxAttempts) {
           console.warn('⚠️ WAIT_USER - Usuario no encontrado después de múltiples intentos');
-          return;
+          return false;
         }
 
-        // Esperar antes del siguiente intento
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Esperar más tiempo en intentos posteriores
+        const waitTime = Math.min(500 * attempt, 2000);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
         
       } catch (error) {
         console.warn(`⚠️ WAIT_USER - Intento ${attempt} fallido:`, error);
-        if (attempt === maxAttempts) break;
+        if (attempt === maxAttempts) return false;
         await new Promise(resolve => setTimeout(resolve, 500));
       }
+    }
+    return false;
+  }
+
+  /**
+   * Crear usuario manualmente si el trigger falla
+   */
+  private async createUserManually(user: User, data: RegisterData): Promise<void> {
+    try {
+      console.log('🔄 CREATE_USER_MANUAL - Creando usuario manualmente...');
+      
+      const { error } = await supabase
+        .from('users')
+        .insert({
+          id: user.id,
+          email: user.email,
+          user_type: data.role,
+          phone: data.phone,
+          is_verified: !!user.email_confirmed_at,
+          is_active: true
+        });
+
+      if (error) {
+        console.error('❌ CREATE_USER_MANUAL - Error:', error);
+        throw error;
+      }
+
+      console.log('✅ CREATE_USER_MANUAL - Usuario creado manualmente');
+    } catch (error) {
+      console.error('❌ CREATE_USER_MANUAL - Error crítico:', error);
+      throw error;
     }
   }
 
   /**
-   * Crear perfiles específicos respetando RLS
+   * Crear perfiles específicos con reintentos
    */
-  private async createUserProfiles(userId: string, data: RegisterData): Promise<void> {
-    try {
-      console.log('🔄 CREATE_PROFILES - Creando perfiles con RLS...', { 
-        userId, 
-        role: data.role 
-      });
+  private async createUserProfilesWithRetry(userId: string, data: RegisterData, maxAttempts: number = 3): Promise<void> {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        console.log(`🔄 CREATE_PROFILES - Intento ${attempt}/${maxAttempts} - Creando perfiles...`, { 
+          userId, 
+          role: data.role 
+        });
 
-      if (data.role === 'worker') {
-        await this.createWorkerProfile(userId, data);
-      } else if (data.role === 'company') {
-        await this.createCompanyProfile(userId, data);
+        if (data.role === 'worker') {
+          await this.createWorkerProfile(userId, data);
+        } else if (data.role === 'company') {
+          await this.createCompanyProfile(userId, data);
+        }
+
+        console.log('✅ CREATE_PROFILES - Perfiles creados exitosamente');
+        return; // Éxito, salir del loop
+
+      } catch (error: any) {
+        console.warn(`⚠️ CREATE_PROFILES - Intento ${attempt} fallido:`, error);
+        
+        // Si es error de clave foránea y no es el último intento, esperar y reintentar
+        if (error?.code === '23503' && attempt < maxAttempts) {
+          console.log('🔄 CREATE_PROFILES - Error de FK, esperando antes de reintentar...');
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+          continue;
+        }
+        
+        // Si es el último intento o error diferente, loggear pero no fallar
+        console.error(`❌ CREATE_PROFILES - Error final en intento ${attempt}:`, error);
+        break;
       }
-
-    } catch (error) {
-      console.warn('⚠️ CREATE_PROFILES - Error en perfiles (continuando):', error);
     }
   }
 

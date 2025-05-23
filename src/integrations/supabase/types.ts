@@ -782,6 +782,10 @@ export type Database = {
         Args: { user_id: string }
         Returns: boolean
       }
+      sync_orphaned_users: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       application_status_type:
