@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -12,6 +11,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { analytics } from "@/utils/analytics";
+import { LocationService } from "@/services/api/locationService";
 
 interface Province {
   id: string;
@@ -130,30 +130,12 @@ export function LocationAutocomplete({
     setError(null);
     
     try {
-      // Check if we have cached provinces in sessionStorage
-      const cachedProvinces = sessionStorage.getItem('argentineProvinces');
-      if (cachedProvinces) {
-        setProvinces(JSON.parse(cachedProvinces));
-        setIsLoadingProvinces(false);
-        return;
-      }
-      
-      const response = await fetch('https://apis.datos.gob.ar/georef/api/provincias?orden=nombre');
-      const data = await response.json();
-      
-      if (data && data.provincias) {
-        setProvinces(data.provincias);
-        // Cache the provinces in sessionStorage
-        sessionStorage.setItem('argentineProvinces', JSON.stringify(data.provincias));
-      } else {
-        throw new Error('Invalid response format');
-      }
+      const fetchedProvinces = await LocationService.getProvinces();
+      setProvinces(fetchedProvinces);
     } catch (err) {
       console.error('Error fetching provinces:', err);
       setError('No se pudieron cargar las provincias. Por favor, intenta nuevamente.');
-      
-      // Use backup data
-      setProvinces(mockProvinces);
+      setProvinces(LocationService.getMockProvinces());
     } finally {
       setIsLoadingProvinces(false);
     }
@@ -166,35 +148,12 @@ export function LocationAutocomplete({
     setError(null);
     
     try {
-      // Check if we have cached cities for this province in sessionStorage
-      const cacheKey = `argentineCities_${provinceId}`;
-      const cachedCities = sessionStorage.getItem(cacheKey);
-      
-      if (cachedCities) {
-        setCities(JSON.parse(cachedCities));
-        setIsLoadingCities(false);
-        return;
-      }
-      
-      const response = await fetch(
-        `https://apis.datos.gob.ar/georef/api/localidades?provincia=${provinceId}&orden=nombre&max=1000`
-      );
-      const data = await response.json();
-      
-      if (data && data.localidades) {
-        setCities(data.localidades);
-        // Cache the cities in sessionStorage
-        sessionStorage.setItem(cacheKey, JSON.stringify(data.localidades));
-      } else {
-        throw new Error('Invalid response format');
-      }
+      const fetchedCities = await LocationService.getCitiesByProvince(provinceId);
+      setCities(fetchedCities);
     } catch (err) {
       console.error('Error fetching cities:', err);
       setError('No se pudieron cargar las localidades. Por favor, intenta nuevamente.');
-      
-      // Use backup data for the selected province
-      const mockCitiesForProvince = mockCitiesByProvince[provinceId] || [];
-      setCities(mockCitiesForProvince);
+      setCities(LocationService.getMockCitiesForProvince(provinceId));
     } finally {
       setIsLoadingCities(false);
     }
@@ -242,10 +201,10 @@ export function LocationAutocomplete({
           onValueChange={handleProvinceChange} 
           defaultValue=""
         >
-          <SelectTrigger id="province" className={provinceValue ? "" : "text-muted-foreground"}>
+          <SelectTrigger id="province" className={cn(provinceValue ? "" : "text-muted-foreground")}>
             <SelectValue placeholder="Selecciona una provincia" />
           </SelectTrigger>
-          <SelectContent className="bg-white">
+          <SelectContent className="bg-white max-h-[300px]">
             {isLoadingProvinces ? (
               <div className="flex items-center justify-center p-2">
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
