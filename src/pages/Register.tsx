@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,10 +9,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Briefcase, Users, Building, Mail, Lock, Phone, MapPin, User } from 'lucide-react';
-import { CUITValidation } from '@/components/form/CUITValidation';
-import { LocationAutocomplete } from '@/components/form/LocationAutocomplete';
+import { Briefcase, Users, Building, Mail, Lock, Phone, User } from 'lucide-react';
+import { LocationSelector } from '@/components/form/LocationSelector'; 
+import { CUITInput } from '@/components/form/CUITInput'; 
 import { analytics } from '@/utils/analytics';
+
+// Helper function for class names
+const cn = (...classes: any[]) => {
+  return classes.filter(Boolean).join(' ');
+};
 
 const Register = () => {
   const [searchParams] = useSearchParams();
@@ -36,26 +40,22 @@ const Register = () => {
     email: '',
     password: '',
     phone: '',
-    location: '',
     province: '',
     city: '',
     skills: '',
     bio: ''
   });
 
-  // Company form state with new fields
+  // Company form state - SIMPLIFICADO
   const [companyData, setCompanyData] = useState({
     companyName: '',
     email: '',
     password: '',
     phone: '',
     cuit: '',
-    cuitValidated: false,
-    companyDataFromAFIP: null as any,
     sector: '',
     province: '',
     city: '',
-    location: '',
     description: ''
   });
 
@@ -65,22 +65,6 @@ const Register = () => {
       setActiveTab(type);
     }
   }, [searchParams]);
-
-  // Handle CUIT validation result
-  const handleCUITValidationResult = (result: any) => {
-    setCompanyData({
-      ...companyData,
-      cuitValidated: result?.isValid || false,
-      // Auto-fill company name if available
-      companyName: result?.isValid && result?.companyData?.razonSocial 
-        ? result.companyData.razonSocial 
-        : companyData.companyName,
-      companyDataFromAFIP: result?.isValid ? result.companyData : null
-    });
-    
-    // Track validation result
-    analytics.trackValidation('cuit', result?.isValid || false);
-  };
 
   const handleWorkerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,7 +81,7 @@ const Register = () => {
         ...workerData,
         role: 'worker',
         skills: workerData.skills.split(',').map(s => s.trim()),
-        location: workerData.city ? `${workerData.city}, ${workerData.province}` : workerData.location
+        location: workerData.city && workerData.province ? `${workerData.city}, ${workerData.province}` : ''
       });
       
       toast({
@@ -137,8 +121,8 @@ const Register = () => {
     const startTime = Date.now();
     analytics.trackEvent('registration_attempt', { 
       type: 'company',
-      cuit_validated: companyData.cuitValidated,
-      has_location: !!companyData.city && !!companyData.province
+      has_location: !!companyData.city && !!companyData.province,
+      has_cuit: !!companyData.cuit
     });
 
     try {
@@ -146,9 +130,7 @@ const Register = () => {
         ...companyData,
         role: 'company',
         name: companyData.companyName,
-        location: companyData.city ? `${companyData.city}, ${companyData.province}` : companyData.location,
-        // Include AFIP data for verification
-        afipData: companyData.companyDataFromAFIP
+        location: companyData.city && companyData.province ? `${companyData.city}, ${companyData.province}` : ''
       });
       
       toast({
@@ -158,8 +140,7 @@ const Register = () => {
       
       analytics.trackEvent('registration_success', { 
         type: 'company',
-        time_ms: Date.now() - startTime,
-        cuit_validated: companyData.cuitValidated
+        time_ms: Date.now() - startTime
       });
       
       navigate('/dashboard');
@@ -227,7 +208,7 @@ const Register = () => {
                           placeholder="Juan Pérez"
                           value={workerData.name}
                           onChange={(e) => {
-                            setWorkerData({...workerData, name: e.target.value});
+                            setWorkerData(prevData => ({...prevData, name: e.target.value}));
                             analytics.trackFormField('worker_registration', 'name', 'change');
                           }}
                           className="pl-10"
@@ -245,7 +226,7 @@ const Register = () => {
                           placeholder="+54 11 1234-5678"
                           value={workerData.phone}
                           onChange={(e) => {
-                            setWorkerData({...workerData, phone: e.target.value});
+                            setWorkerData(prevData => ({...prevData, phone: e.target.value}));
                             analytics.trackFormField('worker_registration', 'phone', 'change');
                           }}
                           className="pl-10"
@@ -265,7 +246,7 @@ const Register = () => {
                         placeholder="tu@email.com"
                         value={workerData.email}
                         onChange={(e) => {
-                          setWorkerData({...workerData, email: e.target.value});
+                          setWorkerData(prevData => ({...prevData, email: e.target.value}));
                           analytics.trackFormField('worker_registration', 'email', 'change');
                         }}
                         className="pl-10"
@@ -284,7 +265,7 @@ const Register = () => {
                         placeholder="Mínimo 6 caracteres"
                         value={workerData.password}
                         onChange={(e) => {
-                          setWorkerData({...workerData, password: e.target.value});
+                          setWorkerData(prevData => ({...prevData, password: e.target.value}));
                           analytics.trackFormField('worker_registration', 'password', 'change');
                         }}
                         className="pl-10"
@@ -294,16 +275,16 @@ const Register = () => {
                     </div>
                   </div>
 
-                  {/* Worker Location Autocomplete */}
-                  <LocationAutocomplete
+                  {/* Location Selector Simplificado */}
+                  <LocationSelector
                     provinceValue={workerData.province}
                     cityValue={workerData.city}
                     onProvinceChange={(province) => {
-                      setWorkerData({...workerData, province});
+                      setWorkerData(prevData => ({...prevData, province}));
                       analytics.trackFormField('worker_registration', 'province', 'select', province);
                     }}
                     onCityChange={(city) => {
-                      setWorkerData({...workerData, city});
+                      setWorkerData(prevData => ({...prevData, city}));
                       analytics.trackFormField('worker_registration', 'city', 'change', city);
                     }}
                   />
@@ -315,7 +296,7 @@ const Register = () => {
                       placeholder="Limpieza, Atención al cliente, Manejo de herramientas..."
                       value={workerData.skills}
                       onChange={(e) => {
-                        setWorkerData({...workerData, skills: e.target.value});
+                        setWorkerData(prevData => ({...prevData, skills: e.target.value}));
                         analytics.trackFormField('worker_registration', 'skills', 'change');
                       }}
                     />
@@ -329,7 +310,7 @@ const Register = () => {
                       placeholder="Experiencia previa, disponibilidad horaria, etc."
                       value={workerData.bio}
                       onChange={(e) => {
-                        setWorkerData({...workerData, bio: e.target.value});
+                        setWorkerData(prevData => ({...prevData, bio: e.target.value}));
                         analytics.trackFormField('worker_registration', 'bio', 'change');
                       }}
                       rows={3}
@@ -344,24 +325,18 @@ const Register = () => {
 
               <TabsContent value="company" className="space-y-4 mt-6">
                 <form onSubmit={handleCompanySubmit} className="space-y-4">
-                  {/* CUIT Validation Component */}
-                  <CUITValidation
+                  {/* CUIT Input Simplificado */}
+                  <CUITInput
                     value={companyData.cuit}
                     onChange={(value) => {
-                      setCompanyData({ ...companyData, cuit: value });
+                      setCompanyData(prevData => ({ ...prevData, cuit: value }));
                       analytics.trackFormField('company_registration', 'cuit', 'change', value);
                     }}
-                    onValidationResult={handleCUITValidationResult}
                   />
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="company-name">
-                        Nombre de la Empresa
-                        {companyData.companyDataFromAFIP && (
-                          <span className="text-xs ml-2 text-green-600">(Verificado por AFIP)</span>
-                        )}
-                      </Label>
+                      <Label htmlFor="company-name">Nombre de la Empresa</Label>
                       <div className="relative">
                         <Building className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                         <Input
@@ -369,13 +344,10 @@ const Register = () => {
                           placeholder="Mi Empresa SA"
                           value={companyData.companyName}
                           onChange={(e) => {
-                            setCompanyData({...companyData, companyName: e.target.value});
+                            setCompanyData(prevData => ({...prevData, companyName: e.target.value}));
                             analytics.trackFormField('company_registration', 'companyName', 'change');
                           }}
-                          className={cn(
-                            "pl-10",
-                            companyData.companyDataFromAFIP && "border-green-300 bg-green-50"
-                          )}
+                          className="pl-10"
                           required
                         />
                       </div>
@@ -390,7 +362,7 @@ const Register = () => {
                           placeholder="+54 11 1234-5678"
                           value={companyData.phone}
                           onChange={(e) => {
-                            setCompanyData({...companyData, phone: e.target.value});
+                            setCompanyData(prevData => ({...prevData, phone: e.target.value}));
                             analytics.trackFormField('company_registration', 'phone', 'change');
                           }}
                           className="pl-10"
@@ -411,7 +383,7 @@ const Register = () => {
                           placeholder="contacto@miempresa.com"
                           value={companyData.email}
                           onChange={(e) => {
-                            setCompanyData({...companyData, email: e.target.value});
+                            setCompanyData(prevData => ({...prevData, email: e.target.value}));
                             analytics.trackFormField('company_registration', 'email', 'change');
                           }}
                           className="pl-10"
@@ -430,7 +402,7 @@ const Register = () => {
                           placeholder="Mínimo 6 caracteres"
                           value={companyData.password}
                           onChange={(e) => {
-                            setCompanyData({...companyData, password: e.target.value});
+                            setCompanyData(prevData => ({...prevData, password: e.target.value}));
                             analytics.trackFormField('company_registration', 'password', 'change');
                           }}
                           className="pl-10"
@@ -441,16 +413,16 @@ const Register = () => {
                     </div>
                   </div>
 
-                  {/* Company Location Autocomplete */}
-                  <LocationAutocomplete
+                  {/* Location Selector Simplificado */}
+                  <LocationSelector
                     provinceValue={companyData.province}
                     cityValue={companyData.city}
                     onProvinceChange={(province) => {
-                      setCompanyData({...companyData, province});
+                      setCompanyData(prevData => ({...prevData, province}));
                       analytics.trackFormField('company_registration', 'province', 'select', province);
                     }}
                     onCityChange={(city) => {
-                      setCompanyData({...companyData, city});
+                      setCompanyData(prevData => ({...prevData, city}));
                       analytics.trackFormField('company_registration', 'city', 'change', city);
                     }}
                   />
@@ -458,7 +430,7 @@ const Register = () => {
                   <div className="space-y-2">
                     <Label htmlFor="company-sector">Sector</Label>
                     <Select value={companyData.sector} onValueChange={(value) => {
-                      setCompanyData({...companyData, sector: value});
+                      setCompanyData(prevData => ({...prevData, sector: value}));
                       analytics.trackFormField('company_registration', 'sector', 'select', value);
                     }}>
                       <SelectTrigger>
@@ -484,27 +456,16 @@ const Register = () => {
                       placeholder="Contanos sobre tu empresa, qué hacen, cuántos empleados tienen..."
                       value={companyData.description}
                       onChange={(e) => {
-                        setCompanyData({...companyData, description: e.target.value});
+                        setCompanyData(prevData => ({...prevData, description: e.target.value}));
                         analytics.trackFormField('company_registration', 'description', 'change');
                       }}
                       rows={3}
                     />
                   </div>
 
-                  <Button 
-                    type="submit" 
-                    className="w-full" 
-                    disabled={isLoading || (activeTab === "company" && !companyData.cuitValidated)}
-                  >
+                  <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? "Creando cuenta..." : "Registrar Empresa"}
                   </Button>
-                  
-                  {/* Help text if CUIT validation is required but not done yet */}
-                  {activeTab === "company" && !companyData.cuitValidated && companyData.cuit && (
-                    <p className="text-sm text-amber-600 text-center">
-                      Para continuar, es necesario validar el CUIT de la empresa
-                    </p>
-                  )}
                 </form>
               </TabsContent>
             </Tabs>
@@ -520,11 +481,6 @@ const Register = () => {
       </div>
     </div>
   );
-};
-
-// Helper function for class names
-const cn = (...classes: any[]) => {
-  return classes.filter(Boolean).join(' ');
 };
 
 export default Register;
