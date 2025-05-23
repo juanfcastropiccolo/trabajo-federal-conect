@@ -11,6 +11,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
+import { analytics } from "@/utils/analytics";
 
 interface Province {
   id: string;
@@ -77,6 +78,11 @@ export function LocationAutocomplete({
       setFilteredCities([]);
     }
   }, [provinceValue, provinces]);
+
+  // Update citySearchText when cityValue changes from parent
+  useEffect(() => {
+    setCitySearchText(cityValue);
+  }, [cityValue]);
   
   // Filter cities based on search text
   useEffect(() => {
@@ -195,6 +201,7 @@ export function LocationAutocomplete({
   };
   
   const handleProvinceChange = (value: string) => {
+    analytics.trackFormField('location', 'province', 'select', value);
     onProvinceChange(value);
     onCityChange('');
     setCitySearchText('');
@@ -211,6 +218,8 @@ export function LocationAutocomplete({
       setSelectedCityObject(null);
       if (onCitySelect) onCitySelect(null);
     }
+    
+    analytics.trackFormField('location', 'city', 'change', value);
   };
   
   const handleCitySelect = (city: City) => {
@@ -219,6 +228,8 @@ export function LocationAutocomplete({
     setSelectedCityObject(city);
     setShowCitiesDropdown(false);
     if (onCitySelect) onCitySelect(city);
+    
+    analytics.trackFormField('location', 'city', 'select', city.nombre);
   };
 
   return (
@@ -226,11 +237,15 @@ export function LocationAutocomplete({
       {/* Province Selection */}
       <div className="space-y-2">
         <Label htmlFor="province">Provincia</Label>
-        <Select value={provinceValue} onValueChange={handleProvinceChange}>
-          <SelectTrigger className={provinceValue ? "" : "text-muted-foreground"}>
+        <Select 
+          value={provinceValue} 
+          onValueChange={handleProvinceChange} 
+          defaultValue=""
+        >
+          <SelectTrigger id="province" className={provinceValue ? "" : "text-muted-foreground"}>
             <SelectValue placeholder="Selecciona una provincia" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-white">
             {isLoadingProvinces ? (
               <div className="flex items-center justify-center p-2">
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />

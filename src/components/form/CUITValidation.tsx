@@ -4,6 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CheckCircle2, XCircle, AlertCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AFIPService } from "@/services/api/afipService";
+import { analytics } from "@/utils/analytics";
 
 interface CUITValidationResponse {
   isValid: boolean;
@@ -74,15 +76,18 @@ export function CUITValidation({ value, onChange, onValidationResult, className 
     setValidationState('validating');
     
     try {
-      // For demo purposes, we'll mock the API call
-      // In production, replace with actual API call to AFIP SDK
-      const mockResponse = await mockValidateCUIT(cuit);
+      // Get validation result from AFIP service
+      const startTime = performance.now();
+      const result = await AFIPService.validateCUIT(cuit);
+      const duration = performance.now() - startTime;
       
-      setValidationResult(mockResponse);
-      setValidationState(mockResponse.isValid ? 'valid' : 'invalid');
+      analytics.trackApiRequest('afip/validate-cuit', result.isValid, Math.round(duration));
+      
+      setValidationResult(result);
+      setValidationState(result.isValid ? 'valid' : 'invalid');
       
       if (onValidationResult) {
-        onValidationResult(mockResponse);
+        onValidationResult(result);
       }
     } catch (error) {
       console.error('Error validating CUIT:', error);
@@ -92,73 +97,18 @@ export function CUITValidation({ value, onChange, onValidationResult, className 
         error: 'Error al conectar con el servicio de validación'
       });
       
+      analytics.trackApiRequest('afip/validate-cuit', false, 0, error instanceof Error ? error.message : 'Unknown error');
+      
       if (onValidationResult) {
         onValidationResult(null);
       }
     }
   };
 
-  // Mock function - replace with actual API call in production
-  const mockValidateCUIT = async (cuit: string): Promise<CUITValidationResponse> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const cleanCUIT = cuit.replace(/\D/g, '');
-    
-    // Add specific test cases
-    if (cleanCUIT === '30709653642') {
-      return {
-        isValid: true,
-        companyData: {
-          razonSocial: 'MERCADOLIBRE S.R.L.',
-          estado: 'ACTIVO',
-          fechaInscripcion: '2001-07-12',
-          domicilioFiscal: 'Av. Caseros 3039, CABA',
-          actividadPrincipal: 'Servicios de comercialización',
-          categoriaIVA: 'Responsable Inscripto'
-        }
-      };
-    }
-    
-    if (cleanCUIT === '30628786561') {
-      return {
-        isValid: true,
-        companyData: {
-          razonSocial: 'GOOGLE ARGENTINA S.R.L.',
-          estado: 'ACTIVO',
-          fechaInscripcion: '1999-11-22',
-          domicilioFiscal: 'Av. del Libertador 6250, CABA',
-          actividadPrincipal: 'Servicios de publicidad',
-          categoriaIVA: 'Responsable Inscripto'
-        }
-      };
-    }
-    
-    if (cleanCUIT === '30715511358') {
-      return {
-        isValid: true,
-        companyData: {
-          razonSocial: 'GLOBANT S.A.',
-          estado: 'ACTIVO',
-          fechaInscripcion: '2013-02-15',
-          domicilioFiscal: 'Ing. Butty 240, CABA',
-          actividadPrincipal: 'Servicios de consultoría informática',
-          categoriaIVA: 'Responsable Inscripto'
-        }
-      };
-    }
-    
-    // Default for invalid CUITs
-    return {
-      isValid: false,
-      error: 'CUIT no encontrado en registros de AFIP'
-    };
-  };
-
   // Handle change and format input
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatCUIT(e.target.value);
-    onChange(formatted);
+    onChange(formatted); // Ensure this is called to update the parent component
     
     // Clear previous timeout
     if (timeoutId) {
