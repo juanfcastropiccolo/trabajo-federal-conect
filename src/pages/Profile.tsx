@@ -1,6 +1,7 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import Navbar from '../components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,12 +12,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { User, Building, MapPin, Phone, Mail, Edit, Save, X, Plus } from 'lucide-react';
+import { User, Building, MapPin, Phone, Mail, Edit, Save, X, Plus, Loader2 } from 'lucide-react';
 
 const Profile = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [newSkill, setNewSkill] = useState('');
 
   const [formData, setFormData] = useState({
@@ -30,15 +32,57 @@ const Profile = () => {
     sector: user?.profile.sector || ''
   });
 
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user.profile.name || '',
+        email: user.email || '',
+        phone: user.profile.phone || '',
+        location: user.profile.location || '',
+        bio: user.profile.bio || '',
+        skills: user.profile.skills || [],
+        cuit: user.profile.cuit || '',
+        sector: user.profile.sector || ''
+      });
+    }
+  }, [user]);
+
   if (!user) return null;
 
-  const handleSave = () => {
-    // In a real app, this would update the user in the backend
-    toast({
-      title: "Perfil actualizado",
-      description: "Tus cambios han sido guardados exitosamente.",
-    });
-    setIsEditing(false);
+  const handleSave = async () => {
+    try {
+      setIsLoading(true);
+      
+      // In a real app with Supabase, this would update the user in the database
+      // Example code (commented out until database tables are properly set up):
+      /*
+      const { error } = await supabase
+        .from(user.role === 'worker' ? 'worker_profiles' : 'company_profiles')
+        .update({
+          // Map formData to the appropriate fields in your table
+        })
+        .eq('user_id', user.id);
+        
+      if (error) throw error;
+      */
+      
+      // For now, we'll just show a success toast
+      toast({
+        title: "Perfil actualizado",
+        description: "Tus cambios han sido guardados exitosamente.",
+      });
+      
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast({
+        title: "Error al actualizar",
+        description: "No se pudieron guardar los cambios. Inténtalo de nuevo.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleCancel = () => {
@@ -131,11 +175,20 @@ const Profile = () => {
                   </Button>
                 ) : (
                   <div className="flex gap-2">
-                    <Button onClick={handleSave}>
-                      <Save className="w-4 h-4 mr-2" />
-                      Guardar
+                    <Button onClick={handleSave} disabled={isLoading}>
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Guardando
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4 mr-2" />
+                          Guardar
+                        </>
+                      )}
                     </Button>
-                    <Button variant="outline" onClick={handleCancel}>
+                    <Button variant="outline" onClick={handleCancel} disabled={isLoading}>
                       <X className="w-4 h-4 mr-2" />
                       Cancelar
                     </Button>
@@ -158,7 +211,7 @@ const Profile = () => {
                         id="name"
                         value={formData.name}
                         onChange={(e) => setFormData({...formData, name: e.target.value})}
-                        disabled={!isEditing}
+                        disabled={!isEditing || isLoading}
                         className="pl-10"
                       />
                     </div>
@@ -173,7 +226,7 @@ const Profile = () => {
                         type="email"
                         value={formData.email}
                         onChange={(e) => setFormData({...formData, email: e.target.value})}
-                        disabled={!isEditing}
+                        disabled={!isEditing || isLoading}
                         className="pl-10"
                       />
                     </div>
@@ -189,7 +242,7 @@ const Profile = () => {
                         id="phone"
                         value={formData.phone}
                         onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                        disabled={!isEditing}
+                        disabled={!isEditing || isLoading}
                         className="pl-10"
                       />
                     </div>
@@ -203,7 +256,7 @@ const Profile = () => {
                         id="location"
                         value={formData.location}
                         onChange={(e) => setFormData({...formData, location: e.target.value})}
-                        disabled={!isEditing}
+                        disabled={!isEditing || isLoading}
                         className="pl-10"
                       />
                     </div>
@@ -218,7 +271,7 @@ const Profile = () => {
                         id="cuit"
                         value={formData.cuit}
                         onChange={(e) => setFormData({...formData, cuit: e.target.value})}
-                        disabled={!isEditing}
+                        disabled={!isEditing || isLoading}
                         placeholder="20-12345678-9"
                       />
                     </div>
@@ -228,7 +281,7 @@ const Profile = () => {
                       <Select 
                         value={formData.sector} 
                         onValueChange={(value) => setFormData({...formData, sector: value})}
-                        disabled={!isEditing}
+                        disabled={!isEditing || isLoading}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Seleccionar sector" />
@@ -256,7 +309,7 @@ const Profile = () => {
                     id="bio"
                     value={formData.bio}
                     onChange={(e) => setFormData({...formData, bio: e.target.value})}
-                    disabled={!isEditing}
+                    disabled={!isEditing || isLoading}
                     rows={4}
                     placeholder={
                       user.role === 'company' 
@@ -279,7 +332,7 @@ const Profile = () => {
                     {formData.skills.map((skill, index) => (
                       <Badge key={index} variant="secondary" className="relative group">
                         {skill}
-                        {isEditing && (
+                        {isEditing && !isLoading && (
                           <button
                             onClick={() => removeSkill(skill)}
                             className="ml-2 text-red-500 hover:text-red-700"
@@ -291,7 +344,7 @@ const Profile = () => {
                     ))}
                   </div>
 
-                  {isEditing && (
+                  {isEditing && !isLoading && (
                     <div className="flex gap-2">
                       <Input
                         value={newSkill}
