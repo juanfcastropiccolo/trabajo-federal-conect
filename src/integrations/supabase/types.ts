@@ -216,6 +216,8 @@ export type Database = {
           address: string | null
           application_deadline: string | null
           applications_count: number | null
+          benefits: string[] | null
+          category: string | null
           city: string | null
           company_id: string
           created_at: string
@@ -225,8 +227,8 @@ export type Database = {
           location_type: Database["public"]["Enums"]["location_type"]
           positions_available: number | null
           province: string | null
-          requirements: string | null
-          responsibilities: string | null
+          requirements: string[] | null
+          responsibilities: string[] | null
           salary_max: number | null
           salary_min: number | null
           salary_type: Database["public"]["Enums"]["salary_type"] | null
@@ -242,6 +244,8 @@ export type Database = {
           address?: string | null
           application_deadline?: string | null
           applications_count?: number | null
+          benefits?: string[] | null
+          category?: string | null
           city?: string | null
           company_id: string
           created_at?: string
@@ -251,8 +255,8 @@ export type Database = {
           location_type: Database["public"]["Enums"]["location_type"]
           positions_available?: number | null
           province?: string | null
-          requirements?: string | null
-          responsibilities?: string | null
+          requirements?: string[] | null
+          responsibilities?: string[] | null
           salary_max?: number | null
           salary_min?: number | null
           salary_type?: Database["public"]["Enums"]["salary_type"] | null
@@ -268,6 +272,8 @@ export type Database = {
           address?: string | null
           application_deadline?: string | null
           applications_count?: number | null
+          benefits?: string[] | null
+          category?: string | null
           city?: string | null
           company_id?: string
           created_at?: string
@@ -277,8 +283,8 @@ export type Database = {
           location_type?: Database["public"]["Enums"]["location_type"]
           positions_available?: number | null
           province?: string | null
-          requirements?: string | null
-          responsibilities?: string | null
+          requirements?: string[] | null
+          responsibilities?: string[] | null
           salary_max?: number | null
           salary_min?: number | null
           salary_type?: Database["public"]["Enums"]["salary_type"] | null
@@ -801,7 +807,13 @@ export type Database = {
       experience_level_type: "beginner" | "intermediate" | "advanced" | "expert"
       favorite_type: "worker" | "company" | "job_post"
       gender_type: "male" | "female" | "other" | "prefer_not_to_say"
-      job_status_type: "draft" | "published" | "paused" | "closed" | "filled"
+      job_status_type:
+        | "draft"
+        | "published"
+        | "paused"
+        | "closed"
+        | "filled"
+        | "open"
       location_type: "on_site" | "remote" | "hybrid"
       message_type: "text" | "image" | "document" | "system"
       notification_type:
@@ -949,7 +961,14 @@ export const Constants = {
       experience_level_type: ["beginner", "intermediate", "advanced", "expert"],
       favorite_type: ["worker", "company", "job_post"],
       gender_type: ["male", "female", "other", "prefer_not_to_say"],
-      job_status_type: ["draft", "published", "paused", "closed", "filled"],
+      job_status_type: [
+        "draft",
+        "published",
+        "paused",
+        "closed",
+        "filled",
+        "open",
+      ],
       location_type: ["on_site", "remote", "hybrid"],
       message_type: ["text", "image", "document", "system"],
       notification_type: [
