@@ -66,6 +66,10 @@ export const applyToJob = async (job: Job, user: User): Promise<void> => {
     // Send notification via n8n webhook
     const applicantName = user.profile?.full_name || user.profile?.name || user.email;
     const companyEmail = job.companyEmail || job.company?.email;
+    const companyName = job.company?.name || 'Empresa';
+    
+    // Generate unique conversation ID
+    const conversationId = `conv_${Date.now()}_${user.id}_${job.companyId}`;
     
     await NotificationService.sendJobApplicationNotification({
       applicantId: user.id,
@@ -74,13 +78,16 @@ export const applyToJob = async (job: Job, user: User): Promise<void> => {
       jobId: job.id,
       jobTitle: job.title,
       companyId: job.companyId,
+      companyName,
       companyEmail,
+      conversationId,
     });
     
     // Track successful application
     analytics.trackEvent('job_application_success', {
       job_id: job.id,
       company_id: job.companyId,
+      conversation_id: conversationId,
       time_ms: Date.now() - startTime,
       has_company_email: !!companyEmail
     });
