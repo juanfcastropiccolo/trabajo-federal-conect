@@ -39,6 +39,7 @@ export type Database = {
       company_profiles: {
         Row: {
           address: string | null
+          avatar_url: string | null
           business_name: string | null
           city: string | null
           company_name: string
@@ -63,6 +64,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          avatar_url?: string | null
           business_name?: string | null
           city?: string | null
           company_name: string
@@ -87,6 +89,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          avatar_url?: string | null
           business_name?: string | null
           city?: string | null
           company_name?: string
@@ -637,6 +640,7 @@ export type Database = {
         Row: {
           address: string | null
           availability: Database["public"]["Enums"]["availability_type"] | null
+          avatar_url: string | null
           bio: string | null
           birth_date: string | null
           city: string | null
@@ -663,6 +667,7 @@ export type Database = {
         Insert: {
           address?: string | null
           availability?: Database["public"]["Enums"]["availability_type"] | null
+          avatar_url?: string | null
           bio?: string | null
           birth_date?: string | null
           city?: string | null
@@ -689,6 +694,7 @@ export type Database = {
         Update: {
           address?: string | null
           availability?: Database["public"]["Enums"]["availability_type"] | null
+          avatar_url?: string | null
           bio?: string | null
           birth_date?: string | null
           city?: string | null

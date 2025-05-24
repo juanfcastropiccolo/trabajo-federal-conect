@@ -50,30 +50,91 @@ const Profile = () => {
 
   if (!user) return null;
 
-  const handleAvatarUpdate = (newAvatarUrl: string) => {
-    setCurrentAvatar(newAvatarUrl);
-    // En una aplicación real, aquí actualizarías la base de datos
-    // Por ahora solo actualizamos el estado local
+  const handleAvatarUpdate = async (newAvatarUrl: string) => {
+    try {
+      setCurrentAvatar(newAvatarUrl);
+      
+      // Actualizar en la base de datos según el tipo de usuario
+      if (user.role === 'worker') {
+        const { error } = await supabase
+          .from('worker_profiles')
+          .update({ profile_picture_url: newAvatarUrl })
+          .eq('user_id', user.id);
+          
+        if (error) throw error;
+      } else if (user.role === 'company') {
+        const { error } = await supabase
+          .from('company_profiles')
+          .update({ avatar_url: newAvatarUrl })
+          .eq('user_id', user.id);
+          
+        if (error) throw error;
+      }
+      
+      console.log('✅ Avatar actualizado en la base de datos:', newAvatarUrl);
+    } catch (error) {
+      console.error('❌ Error actualizando avatar en la base de datos:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar la foto de perfil. Inténtalo de nuevo.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleSave = async () => {
     try {
       setIsLoading(true);
       
-      // In a real app with Supabase, this would update the user in the database
-      // Example code (commented out until database tables are properly set up):
-      /*
-      const { error } = await supabase
-        .from(user.role === 'worker' ? 'worker_profiles' : 'company_profiles')
-        .update({
-          // Map formData to the appropriate fields in your table
-        })
-        .eq('user_id', user.id);
+      // Actualizar según el tipo de usuario
+      if (user.role === 'worker') {
+        const { error } = await supabase
+          .from('worker_profiles')
+          .update({
+            first_name: formData.name.split(' ')[0] || '',
+            last_name: formData.name.split(' ').slice(1).join(' ') || '',
+            bio: formData.bio,
+            province: formData.location.split(',')[1]?.trim() || '',
+            city: formData.location.split(',')[0]?.trim() || ''
+          })
+          .eq('user_id', user.id);
+          
+        if (error) throw error;
         
-      if (error) throw error;
-      */
+        // Actualizar phone en la tabla users
+        const { error: userError } = await supabase
+          .from('users')
+          .update({ phone: formData.phone })
+          .eq('id', user.id);
+          
+        if (userError) throw userError;
+        
+      } else if (user.role === 'company') {
+        const { error } = await supabase
+          .from('company_profiles')
+          .update({
+            company_name: formData.name,
+            business_name: formData.name,
+            description: formData.bio,
+            contact_phone: formData.phone,
+            cuit: formData.cuit,
+            industry: formData.sector,
+            province: formData.location.split(',')[1]?.trim() || '',
+            city: formData.location.split(',')[0]?.trim() || ''
+          })
+          .eq('user_id', user.id);
+          
+        if (error) throw error;
+        
+        // Actualizar phone en la tabla users
+        const { error: userError } = await supabase
+          .from('users')
+          .update({ phone: formData.phone })
+          .eq('id', user.id);
+          
+        if (userError) throw userError;
+      }
       
-      // For now, we'll just show a success toast
       toast({
         title: "Perfil actualizado",
         description: "Tus cambios han sido guardados exitosamente.",
