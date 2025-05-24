@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { StorageService } from './storageService';
 
@@ -85,9 +86,13 @@ export const chatService = {
 
         return {
           ...conv,
+          status: conv.status as 'active' | 'closed',
           unread_count: unreadResult.count || 0,
-          last_message: lastMessageResult.data || null
-        };
+          last_message: lastMessageResult.data ? {
+            ...lastMessageResult.data,
+            message_type: lastMessageResult.data.message_type as 'text' | 'file' | 'emoji'
+          } : null
+        } as Conversation;
       })
     );
 
@@ -118,7 +123,10 @@ export const chatService = {
       .single();
 
     if (error) throw error;
-    return data;
+    return {
+      ...data,
+      status: data.status as 'active' | 'closed'
+    } as Conversation;
   },
 
   // Obtener conversación existente
@@ -142,7 +150,10 @@ export const chatService = {
       .single();
 
     if (error && error.code !== 'PGRST116') throw error;
-    return data || null;
+    return data ? {
+      ...data,
+      status: data.status as 'active' | 'closed'
+    } as Conversation : null;
   },
 
   // Cerrar conversación (solo empresas)
@@ -170,7 +181,10 @@ export const chatService = {
       .order('created_at', { ascending: true });
 
     if (error) throw error;
-    return data || [];
+    return (data || []).map(msg => ({
+      ...msg,
+      message_type: msg.message_type as 'text' | 'file' | 'emoji'
+    })) as ChatMessage[];
   },
 
   // Enviar mensaje
@@ -197,7 +211,10 @@ export const chatService = {
       .single();
 
     if (error) throw error;
-    return data;
+    return {
+      ...data,
+      message_type: data.message_type as 'text' | 'file' | 'emoji'
+    } as ChatMessage;
   },
 
   // Marcar mensajes como leídos
