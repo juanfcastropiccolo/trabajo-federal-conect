@@ -29,7 +29,7 @@ export const jobService = {
     const { data, error } = await supabase
       .from('job_posts')
       .insert({
-        user_id: user.id,
+        company_id: user.id,
         title: jobData.title,
         description: jobData.description,
         requirements: jobData.requirements,
@@ -84,7 +84,7 @@ export const jobService = {
           industry
         )
       `)
-      .eq('user_id', companyId)
+      .eq('company_id', companyId)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -130,7 +130,7 @@ export const jobService = {
         *,
         job_posts (
           title,
-          user_id,
+          company_id,
           company_profiles (
             company_name
           )
