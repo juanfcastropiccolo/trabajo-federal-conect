@@ -1,5 +1,6 @@
-// src/contexts/AuthContext.tsx - OPTIMIZADO PARA NAVEGACIÓN RÁPIDA
-import React, { createContext, useContext, useState, useEffect } from 'react';
+
+// src/contexts/AuthContext.tsx - OPTIMIZADO PARA PREVENIR CONGELAMIENTO
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { User, UserRole } from '../types';
 import { authService, RegisterData } from '../services/authService';
 
@@ -24,89 +25,119 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const initializationRef = useRef(false);
+  const loadingTimeoutRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
     let mounted = true;
+    let authSubscription: any = null;
 
-    // Función para cargar el usuario inicial
-    const loadInitialUser = async () => {
+    const initialize = async () => {
+      if (initializationRef.current) return;
+      initializationRef.current = true;
+
       try {
-        console.log('🔄 AUTH_CONTEXT - Cargando usuario inicial...');
-        const currentUser = await authService.getCurrentUser();
+        console.log('🔄 AUTH_CONTEXT - Inicializando sistema de auth...');
+
+        // Configurar timeout de seguridad para loading
+        loadingTimeoutRef.current = setTimeout(() => {
+          if (mounted) {
+            console.log('⚠️ AUTH_CONTEXT - Timeout de carga, finalizando loading');
+            setIsLoading(false);
+          }
+        }, 5000);
+
+        // PASO 1: Configurar listener primero (sin async)
+        const { data: { subscription } } = authService.onAuthStateChange((appUser) => {
+          if (mounted) {
+            console.log('🔄 AUTH_CONTEXT - Auth state cambió:', appUser ? `Usuario: ${appUser.email}` : 'Sin usuario');
+            setUser(appUser);
+            
+            // Finalizar loading cuando tengamos un resultado definitivo
+            if (loadingTimeoutRef.current) {
+              clearTimeout(loadingTimeoutRef.current);
+            }
+            setIsLoading(false);
+          }
+        });
         
+        authSubscription = subscription;
+
+        // PASO 2: Cargar usuario inicial (con timeout)
+        const currentUser = await Promise.race([
+          authService.getCurrentUser(),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000))
+        ]);
+
         if (mounted) {
           setUser(currentUser);
-          console.log(currentUser ? '✅ AUTH_CONTEXT - Usuario cargado' : 'ℹ️ AUTH_CONTEXT - No hay usuario autenticado');
+          if (loadingTimeoutRef.current) {
+            clearTimeout(loadingTimeoutRef.current);
+          }
+          setIsLoading(false);
+          console.log(currentUser ? '✅ AUTH_CONTEXT - Usuario inicial cargado' : 'ℹ️ AUTH_CONTEXT - No hay usuario inicial');
         }
+
       } catch (error) {
-        console.error('❌ AUTH_CONTEXT - Error cargando usuario inicial:', error);
+        console.error('❌ AUTH_CONTEXT - Error en inicialización:', error);
         if (mounted) {
           setUser(null);
-        }
-      } finally {
-        if (mounted) {
+          if (loadingTimeoutRef.current) {
+            clearTimeout(loadingTimeoutRef.current);
+          }
           setIsLoading(false);
         }
       }
     };
 
-    loadInitialUser();
+    initialize();
 
-    // Configurar listener para cambios de autenticación
-    const { data: { subscription } } = authService.onAuthStateChange((user) => {
-      if (mounted) {
-        console.log('🔄 AUTH_CONTEXT - Estado de auth cambió:', user ? `Autenticado (${user.role})` : 'No autenticado');
-        setUser(user);
-        setIsLoading(false);
-      }
-    });
-
-    // Cleanup
     return () => {
       mounted = false;
-      subscription.unsubscribe();
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+      if (authSubscription) {
+        authSubscription.unsubscribe();
+      }
     };
   }, []);
 
   const login = async (email: string, password: string) => {
-    console.log('🔄 AUTH_CONTEXT - Iniciando proceso de login...');
+    console.log('🔄 AUTH_CONTEXT - Iniciando login...');
     
     try {
+      setIsLoading(true);
       const result = await authService.login(email, password);
       
       if (result.error) {
         console.error('❌ AUTH_CONTEXT - Error en login:', result.error);
-        return result; // Retornar error para el componente
+        setIsLoading(false);
+        return result;
       }
       
       if (result.user) {
-        console.log('✅ AUTH_CONTEXT - Login completado:', {
-          id: result.user.id,
-          email: result.user.email,
-          role: result.user.role
-        });
-        // Actualizar estado inmediatamente (no esperar al listener)
+        console.log('✅ AUTH_CONTEXT - Login exitoso:', result.user.email);
+        // El listener se encargará de actualizar el estado y finalizar loading
         setUser(result.user);
-        // Ya que el usuario está autenticado, finalizamos cualquier estado de carga
-        setIsLoading(false);
       }
+      
       return result;
       
     } catch (error) {
       console.error('❌ AUTH_CONTEXT - Error inesperado en login:', error);
+      setIsLoading(false);
       const errorMessage = error instanceof Error ? error.message : 'Error inesperado';
       return { user: null, error: errorMessage };
     }
   };
 
   const register = async (userData: any) => {
-    console.log('🔄 AUTH_CONTEXT - Iniciando proceso de registro...', { 
-      email: userData.email, 
-      role: userData.role 
-    });
+    console.log('🔄 AUTH_CONTEXT - Iniciando registro...');
     
     try {
-      // Mapear los datos del formulario al formato esperado por authService
+      setIsLoading(true);
+      
       const registerData: RegisterData = {
         email: userData.email,
         password: userData.password,
@@ -124,37 +155,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: userData.description,
       };
 
-      console.log('🔄 AUTH_CONTEXT - Datos de registro mapeados:', {
-        email: registerData.email,
-        role: registerData.role,
-        name: registerData.name,
-        companyName: registerData.companyName,
-        hasPhone: !!registerData.phone,
-        hasLocation: !!registerData.province
-      });
-
       const result = await authService.register(registerData);
       
       if (result.error) {
         console.error('❌ AUTH_CONTEXT - Error en registro:', result.error);
+        setIsLoading(false);
         return result;
       }
       
       if (result.user) {
-        console.log('✅ AUTH_CONTEXT - Registro completado:', {
-          id: result.user.id,
-          email: result.user.email,
-          role: result.user.role
-        });
-        
-        // Actualizar estado inmediatamente
+        console.log('✅ AUTH_CONTEXT - Registro exitoso:', result.user.email);
         setUser(result.user);
       }
       
+      setIsLoading(false);
       return result;
       
     } catch (error) {
       console.error('❌ AUTH_CONTEXT - Error inesperado en registro:', error);
+      setIsLoading(false);
       const errorMessage = error instanceof Error ? error.message : 'Error inesperado';
       return { user: null, error: errorMessage };
     }
@@ -164,29 +183,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('🔄 AUTH_CONTEXT - Cerrando sesión...');
     try {
       await authService.logout();
-      // Limpiar estado inmediatamente
       setUser(null);
       console.log('✅ AUTH_CONTEXT - Sesión cerrada');
     } catch (error) {
       console.error('❌ AUTH_CONTEXT - Error al cerrar sesión:', error);
-      // Limpiar estado local aunque falle el logout remoto
       setUser(null);
     }
   };
-
-  // Debug: mostrar estado actual en desarrollo
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🔍 AUTH_CONTEXT - Estado actual:', {
-        isLoading,
-        hasUser: !!user,
-        userRole: user?.role,
-        userId: user?.id,
-        userName: user?.profile?.name,
-        timestamp: new Date().toLocaleTimeString()
-      });
-    }
-  }, [user, isLoading]);
 
   return (
     <AuthContext.Provider value={{ user, login, register, logout, isLoading }}>

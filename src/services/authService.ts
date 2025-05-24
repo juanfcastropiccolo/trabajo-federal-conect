@@ -1,4 +1,4 @@
-// src/services/authService.ts - OPTIMIZADO PARA MANEJAR TIMING DE TRIGGERS
+// src/services/authService.ts - OPTIMIZADO PARA PREVENIR CONGELAMIENTO
 import { supabase } from '@/integrations/supabase/client';
 import type { User, AuthError } from '@supabase/supabase-js';
 import type { User as AppUser, UserRole } from '@/types';
@@ -26,6 +26,8 @@ export interface AuthResponse {
 }
 
 class AuthService {
+  private loadingUserData = new Set<string>(); // Prevenir cargas duplicadas
+
   /**
    * REGISTRO OPTIMIZADO CON MEJOR MANEJO DE TIMING
    */
@@ -272,11 +274,11 @@ class AuthService {
   }
 
   /**
-   * LOGIN OPTIMIZADO CON RLS
+   * LOGIN OPTIMIZADO PARA PREVENIR CONGELAMIENTO
    */
   async login(email: string, password: string): Promise<AuthResponse> {
     try {
-      console.log('🔄 LOGIN - Iniciando proceso...', { email });
+      console.log('🔄 LOGIN - Iniciando proceso de login optimizado...', { email });
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -293,11 +295,17 @@ class AuthService {
         return { user: null, error: 'No se pudo autenticar el usuario' };
       }
 
-      console.log('✅ LOGIN - Usuario autenticado:', data.user.id);
+      console.log('✅ LOGIN - Usuario autenticado, cargando datos...');
 
-      const appUser = await this.loadUserDataOptimized(data.user);
+      // Cargar datos del usuario con timeout
+      const appUser = await Promise.race([
+        this.loadUserDataSafe(data.user),
+        new Promise<AppUser>((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout cargando datos')), 5000)
+        )
+      ]);
       
-      console.log('✅ LOGIN - Proceso completado');
+      console.log('✅ LOGIN - Proceso completado exitosamente');
       return { user: appUser, error: null };
 
     } catch (error) {
@@ -306,6 +314,99 @@ class AuthService {
         user: null, 
         error: error instanceof Error ? error.message : 'Error inesperado' 
       };
+    }
+  }
+
+  /**
+   * Cargar datos del usuario de forma segura (sin bucles)
+   */
+  private async loadUserDataSafe(user: User): Promise<AppUser> {
+    // Prevenir cargas duplicadas del mismo usuario
+    if (this.loadingUserData.has(user.id)) {
+      console.log('🔄 LOAD_DATA_SAFE - Carga ya en progreso, esperando...');
+      // Esperar un poco y usar fallback
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return this.buildFallbackUser(user);
+    }
+
+    this.loadingUserData.add(user.id);
+
+    try {
+      console.log('🔄 LOAD_DATA_SAFE - Cargando datos del usuario...');
+
+      // Cargar desde tabla users con timeout corto
+      const { data: userData, error: userError } = await Promise.race([
+        supabase.from('users').select('*').eq('id', user.id).single(),
+        new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000))
+      ]);
+
+      if (userError || !userData) {
+        console.warn('⚠️ LOAD_DATA_SAFE - Usuario no encontrado en tabla, usando fallback');
+        return this.buildFallbackUser(user);
+      }
+
+      const userType = userData.user_type as UserRole;
+      let profileData: any = {};
+
+      // Cargar perfil específico con timeout
+      try {
+        if (userType === 'worker') {
+          const { data } = await Promise.race([
+            supabase.from('worker_profiles').select('*').eq('user_id', user.id).maybeSingle(),
+            new Promise<any>((resolve) => setTimeout(() => resolve({ data: null }), 1500))
+          ]);
+          
+          if (data) {
+            profileData = {
+              name: `${data.first_name} ${data.last_name}`.trim(),
+              bio: data.bio,
+              location: data.city && data.province ? `${data.city}, ${data.province}` : null,
+            };
+          }
+        } else if (userType === 'company') {
+          const { data } = await Promise.race([
+            supabase.from('company_profiles').select('*').eq('user_id', user.id).maybeSingle(),
+            new Promise<any>((resolve) => setTimeout(() => resolve({ data: null }), 1500))
+          ]);
+          
+          if (data) {
+            profileData = {
+              name: data.company_name,
+              cuit: data.cuit,
+              sector: data.industry,
+              bio: data.description,
+              location: data.city && data.province ? `${data.city}, ${data.province}` : null,
+            };
+          }
+        }
+      } catch (profileError) {
+        console.warn('⚠️ LOAD_DATA_SAFE - Error cargando perfil específico, continuando...');
+      }
+
+      console.log('✅ LOAD_DATA_SAFE - Datos cargados exitosamente');
+
+      return {
+        id: user.id,
+        email: user.email || '',
+        role: userType,
+        profile: {
+          name: profileData.name || user.email?.split('@')[0] || 'Usuario',
+          phone: userData.phone,
+          location: profileData.location,
+          bio: profileData.bio,
+          cuit: profileData.cuit,
+          sector: profileData.sector,
+          avatar: `https://images.unsplash.com/photo-${userType === 'company' ? '1560472354-b43ff0c44a43' : '1507003211169-0a1dd7228f2d'}?w=150&h=150&fit=crop&crop=face`,
+        },
+        emailVerified: !!user.email_confirmed_at,
+        createdAt: user.created_at
+      };
+
+    } catch (error) {
+      console.error('❌ LOAD_DATA_SAFE - Error:', error);
+      return this.buildFallbackUser(user);
+    } finally {
+      this.loadingUserData.delete(user.id);
     }
   }
 
@@ -442,8 +543,8 @@ class AuthService {
         return null;
       }
 
-      console.log('✅ GET_CURRENT - Usuario encontrado:', user.id);
-      return await this.loadUserDataOptimized(user);
+      console.log('✅ GET_CURRENT - Usuario encontrado, cargando datos...');
+      return await this.loadUserDataSafe(user);
       
     } catch (error) {
       console.error('❌ GET_CURRENT - Error:', error);
@@ -452,22 +553,26 @@ class AuthService {
   }
 
   onAuthStateChange(callback: (user: AppUser | null) => void) {
-    console.log('🔄 AUTH_CHANGE - Configurando listener...');
+    console.log('🔄 AUTH_CHANGE - Configurando listener optimizado...');
     
     return supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('🔄 AUTH_CHANGE - Evento:', event);
+      console.log('🔄 AUTH_CHANGE - Evento recibido:', event);
       
       if (session?.user) {
-        console.log('✅ AUTH_CHANGE - Usuario en sesión:', session.user.id);
-        try {
-          const appUser = await this.loadUserDataOptimized(session.user);
-          callback(appUser);
-        } catch (error) {
-          console.error('❌ AUTH_CHANGE - Error cargando datos:', error);
-          callback(this.buildFallbackUser(session.user));
-        }
+        console.log('✅ AUTH_CHANGE - Usuario en sesión, procesando...');
+        
+        // Usar setTimeout para evitar bucles síncronos
+        setTimeout(async () => {
+          try {
+            const appUser = await this.loadUserDataSafe(session.user);
+            callback(appUser);
+          } catch (error) {
+            console.error('❌ AUTH_CHANGE - Error cargando datos:', error);
+            callback(this.buildFallbackUser(session.user));
+          }
+        }, 0);
       } else {
-        console.log('ℹ️ AUTH_CHANGE - No hay sesión');
+        console.log('ℹ️ AUTH_CHANGE - No hay sesión activa');
         callback(null);
       }
     });
