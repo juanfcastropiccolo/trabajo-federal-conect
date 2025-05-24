@@ -13,5 +13,14 @@ export const analytics = {
       error: error || 'None'
     });
     // Aquí se podría enviar métricas a un servicio de monitoreo
+  },
+
+  trackFormField: (formName: string, fieldName: string, action: string, value?: string) => {
+    console.log(`📝 Form Field: ${formName}.${fieldName}`, {
+      action,
+      value: value || 'Not provided',
+      timestamp: new Date().toISOString()
+    });
+    // Aquí se podría trackear interacciones de formularios
   }
 };
