@@ -68,7 +68,23 @@ const JobDetail = () => {
       return;
     }
 
+    // Registrar postulación localmente
     applyToJob(job.id, user.id);
+    // Enviar webhook a n8n para disparar envío de emails
+    fetch('https://energia.app.n8n.cloud/webhook-test/872b4da2-51b4-44dc-8568-75e9e9b4125e', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jobId: job.id,
+        jobTitle: job.title,
+        companyId: job.companyId,
+        companyName: job.company?.name,
+        applicantId: user.id,
+        applicantName: user.profile.name,
+        applicantEmail: user.email
+      })
+    }).catch(error => console.error('Webhook n8n error:', error));
+    // Notificar al usuario
     toast({
       title: "¡Postulación enviada!",
       description: "Tu postulación ha sido enviada exitosamente. La empresa recibirá una notificación.",
