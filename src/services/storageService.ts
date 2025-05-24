@@ -17,31 +17,13 @@ export class StorageService {
         return { url: null, error: 'El archivo es muy grande. Máximo 5MB permitido.' };
       }
 
-      // Verificar si el bucket existe, si no, crearlo
-      const { data: buckets } = await supabase.storage.listBuckets();
-      const bucketExists = buckets?.find(bucket => bucket.name === this.PROFILE_PICTURES_BUCKET);
-      
-      if (!bucketExists) {
-        console.log('🔄 STORAGE - Creando bucket de fotos de perfil...');
-        const { error: bucketError } = await supabase.storage.createBucket(this.PROFILE_PICTURES_BUCKET, {
-          public: true,
-          allowedMimeTypes: this.ALLOWED_TYPES,
-          fileSizeLimit: this.MAX_FILE_SIZE
-        });
-        
-        if (bucketError) {
-          console.error('❌ STORAGE - Error creando bucket:', bucketError);
-          return { url: null, error: 'Error configurando almacenamiento. Inténtalo de nuevo.' };
-        }
-      }
-
       // Generar nombre único para el archivo
       const fileExt = file.name.split('.').pop();
       const fileName = `${userId}/avatar.${fileExt}`;
 
       console.log('🔄 STORAGE - Subiendo foto de perfil:', { userId, fileName, size: file.size });
 
-      // Subir archivo a Supabase Storage
+      // Subir archivo a Supabase Storage directamente (el bucket ya existe)
       const { data, error } = await supabase.storage
         .from(this.PROFILE_PICTURES_BUCKET)
         .upload(fileName, file, {
