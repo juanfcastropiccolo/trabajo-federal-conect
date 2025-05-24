@@ -49,11 +49,11 @@ export const chatService = {
       .from('conversations')
       .select(`
         *,
-        company_profiles:company_id (
+        company_profiles!conversations_company_id_fkey (
           company_name,
           avatar_url
         ),
-        worker_profiles:worker_id (
+        worker_profiles!conversations_worker_id_fkey (
           first_name,
           last_name,
           profile_picture_url
@@ -110,11 +110,11 @@ export const chatService = {
       })
       .select(`
         *,
-        company_profiles:company_id (
+        company_profiles!conversations_company_id_fkey (
           company_name,
           avatar_url
         ),
-        worker_profiles:worker_id (
+        worker_profiles!conversations_worker_id_fkey (
           first_name,
           last_name,
           profile_picture_url
@@ -135,11 +135,11 @@ export const chatService = {
       .from('conversations')
       .select(`
         *,
-        company_profiles:company_id (
+        company_profiles!conversations_company_id_fkey (
           company_name,
           avatar_url
         ),
-        worker_profiles:worker_id (
+        worker_profiles!conversations_worker_id_fkey (
           first_name,
           last_name,
           profile_picture_url
