@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Job } from '../types';
 
@@ -46,7 +47,7 @@ export const jobService = {
       start_date: jobData.start_date,
       end_date: jobData.end_date,
       urgency: jobData.urgency || 'medium',
-      status: 'published'
+      status: 'published' as const
     };
 
     console.log('Processed data for Supabase:', processedData);
