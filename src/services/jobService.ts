@@ -9,8 +9,8 @@ export interface CreateJobData {
   responsibilities?: string;
   salary_min?: number;
   salary_max?: number;
-  work_type: 'full-time' | 'part-time' | 'contract' | 'temporary';
-  location_type: 'onsite' | 'remote' | 'hybrid';
+  work_type: 'full_time' | 'part_time' | 'contract' | 'temporary';
+  location_type: 'on_site' | 'remote' | 'hybrid';
   province?: string;
   city?: string;
   address?: string;
@@ -29,7 +29,7 @@ export const jobService = {
     const { data, error } = await supabase
       .from('job_posts')
       .insert({
-        company_id: user.id,
+        user_id: user.id,
         title: jobData.title,
         description: jobData.description,
         requirements: jobData.requirements,
@@ -46,7 +46,7 @@ export const jobService = {
         start_date: jobData.start_date,
         end_date: jobData.end_date,
         urgency: jobData.urgency || 'medium',
-        status: 'active'
+        status: 'published'
       })
       .select()
       .single();
@@ -66,7 +66,7 @@ export const jobService = {
           industry
         )
       `)
-      .eq('status', 'active')
+      .eq('status', 'published')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -84,14 +84,14 @@ export const jobService = {
           industry
         )
       `)
-      .eq('company_id', companyId)
+      .eq('user_id', companyId)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
     return data;
   },
 
-  async updateJobStatus(jobId: string, status: 'active' | 'paused' | 'closed') {
+  async updateJobStatus(jobId: string, status: 'closed' | 'paused' | 'published') {
     const { data, error } = await supabase
       .from('job_posts')
       .update({ status })
@@ -130,7 +130,7 @@ export const jobService = {
         *,
         job_posts (
           title,
-          company_id,
+          user_id,
           company_profiles (
             company_name
           )

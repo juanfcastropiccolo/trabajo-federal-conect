@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -96,8 +95,8 @@ const Jobs = () => {
                 </SelectTrigger>
                 <SelectContent className="bg-white">
                   <SelectItem value="all">Todos los tipos</SelectItem>
-                  <SelectItem value="full-time">Tiempo Completo</SelectItem>
-                  <SelectItem value="part-time">Medio Tiempo</SelectItem>
+                  <SelectItem value="full_time">Tiempo Completo</SelectItem>
+                  <SelectItem value="part_time">Medio Tiempo</SelectItem>
                   <SelectItem value="contract">Por Contrato</SelectItem>
                   <SelectItem value="temporary">Temporal</SelectItem>
                 </SelectContent>
@@ -109,7 +108,7 @@ const Jobs = () => {
                 </SelectTrigger>
                 <SelectContent className="bg-white">
                   <SelectItem value="all">Todas las modalidades</SelectItem>
-                  <SelectItem value="onsite">Presencial</SelectItem>
+                  <SelectItem value="on_site">Presencial</SelectItem>
                   <SelectItem value="remote">Remoto</SelectItem>
                   <SelectItem value="hybrid">Híbrido</SelectItem>
                 </SelectContent>
@@ -184,7 +183,7 @@ const Jobs = () => {
                               {job.company_profiles?.company_name}
                             </span>
                             <Badge variant="secondary">
-                              {job.location_type === 'onsite' ? 'Presencial' :
+                              {job.location_type === 'on_site' ? 'Presencial' :
                                job.location_type === 'remote' ? 'Remoto' : 
                                job.location_type === 'hybrid' ? 'Híbrido' : job.location_type}
                             </Badge>
@@ -233,8 +232,8 @@ const Jobs = () => {
                         )}
                         <div className="flex items-center gap-1">
                           <Clock className="w-4 h-4" />
-                          {job.work_type === 'full-time' ? 'Tiempo Completo' : 
-                           job.work_type === 'part-time' ? 'Medio Tiempo' : 
+                          {job.work_type === 'full_time' ? 'Tiempo Completo' : 
+                           job.work_type === 'part_time' ? 'Medio Tiempo' : 
                            job.work_type === 'contract' ? 'Por Contrato' : 
                            job.work_type === 'temporary' ? 'Temporal' : job.work_type}
                         </div>

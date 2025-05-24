@@ -45,8 +45,8 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ user }) => {
     responsibilities: '',
     salary_min: '',
     salary_max: '',
-    work_type: 'full-time' as 'full-time' | 'part-time' | 'contract' | 'temporary',
-    location_type: 'onsite' as 'onsite' | 'remote' | 'hybrid',
+    work_type: 'full_time' as 'full_time' | 'part_time' | 'contract' | 'temporary',
+    location_type: 'on_site' as 'on_site' | 'remote' | 'hybrid',
     province: '',
     city: '',
     address: '',
@@ -82,8 +82,8 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ user }) => {
         responsibilities: '',
         salary_min: '',
         salary_max: '',
-        work_type: 'full-time',
-        location_type: 'onsite',
+        work_type: 'full_time',
+        location_type: 'on_site',
         province: '',
         city: '',
         address: '',
@@ -138,7 +138,7 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ user }) => {
                     <Label htmlFor="work-type">Tipo de Trabajo</Label>
                     <Select 
                       value={newJob.work_type} 
-                      onValueChange={(value: 'full-time' | 'part-time' | 'contract' | 'temporary') => 
+                      onValueChange={(value: 'full_time' | 'part_time' | 'contract' | 'temporary') => 
                         setNewJob({...newJob, work_type: value})
                       }
                     >
@@ -146,8 +146,8 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ user }) => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-white">
-                        <SelectItem value="full-time">Tiempo Completo</SelectItem>
-                        <SelectItem value="part-time">Medio Tiempo</SelectItem>
+                        <SelectItem value="full_time">Tiempo Completo</SelectItem>
+                        <SelectItem value="part_time">Medio Tiempo</SelectItem>
                         <SelectItem value="contract">Por Contrato</SelectItem>
                         <SelectItem value="temporary">Temporal</SelectItem>
                       </SelectContent>
@@ -228,7 +228,7 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ user }) => {
                   <Label htmlFor="location-type">Modalidad</Label>
                   <Select 
                     value={newJob.location_type} 
-                    onValueChange={(value: 'onsite' | 'remote' | 'hybrid') => 
+                    onValueChange={(value: 'on_site' | 'remote' | 'hybrid') => 
                       setNewJob({...newJob, location_type: value})
                     }
                   >
@@ -236,7 +236,7 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ user }) => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-white">
-                      <SelectItem value="onsite">Presencial</SelectItem>
+                      <SelectItem value="on_site">Presencial</SelectItem>
                       <SelectItem value="remote">Remoto</SelectItem>
                       <SelectItem value="hybrid">Híbrido</SelectItem>
                     </SelectContent>
@@ -422,17 +422,17 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ user }) => {
                             )}
                             <span className="flex items-center gap-1">
                               <Clock className="w-3 h-3" />
-                              {job.work_type === 'full-time' ? 'Tiempo Completo' : 
-                               job.work_type === 'part-time' ? 'Medio Tiempo' : 
+                              {job.work_type === 'full_time' ? 'Tiempo Completo' : 
+                               job.work_type === 'part_time' ? 'Medio Tiempo' : 
                                job.work_type}
                             </span>
                           </div>
                         </div>
                         <Badge 
-                          variant={job.status === 'active' ? 'default' : 'secondary'}
-                          className={job.status === 'active' ? 'bg-green-100 text-green-800' : ''}
+                          variant={job.status === 'published' ? 'default' : 'secondary'}
+                          className={job.status === 'published' ? 'bg-green-100 text-green-800' : ''}
                         >
-                          {job.status === 'active' ? 'Activo' : 'Pausado'}
+                          {job.status === 'published' ? 'Activo' : 'Pausado'}
                         </Badge>
                       </div>
 
