@@ -99,7 +99,7 @@ const JobDetail = () => {
       return;
     }
 
-    if (user.user_type !== 'worker') {
+    if (user.role !== 'worker') {
       toast({
         title: "Error",
         description: "Solo los trabajadores pueden postularse a empleos.",
@@ -316,7 +316,7 @@ const JobDetail = () => {
             {/* Application Card */}
             <Card>
               <CardContent className="p-6">
-                {user?.user_type === 'worker' ? (
+                {user?.role === 'worker' ? (
                   <div className="space-y-4">
                     {isApplied ? (
                       <div className="text-center">
@@ -364,7 +364,7 @@ const JobDetail = () => {
                       </div>
                     )}
                   </div>
-                ) : user?.user_type === 'company' ? (
+                ) : user?.role === 'company' ? (
                   <div className="text-center">
                     <Building className="w-12 h-12 mx-auto text-blue-600 mb-3" />
                     <p className="text-gray-600">Sos una empresa</p>
