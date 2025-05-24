@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { notificationService } from './notificationService';
 import { Job } from '../types';
@@ -175,11 +174,37 @@ export const jobService = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Usuario no autenticado');
 
+    console.log('Applying to job:', { jobId, userId: user.id, applicationData });
+
+    // Primero verificar que el usuario sea un trabajador y obtener su worker profile
+    const { data: workerProfile, error: workerError } = await supabase
+      .from('worker_profiles')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (workerError || !workerProfile) {
+      console.error('Worker profile not found:', workerError);
+      throw new Error('No se encontró el perfil de trabajador. Debes completar tu perfil antes de postularte.');
+    }
+
+    // Verificar si ya se postuló a este empleo
+    const { data: existingApplication, error: checkError } = await supabase
+      .from('job_applications')
+      .select('id')
+      .eq('job_post_id', jobId)
+      .eq('worker_id', user.id)
+      .single();
+
+    if (existingApplication) {
+      throw new Error('Ya te postulaste a este empleo.');
+    }
+
     const { data, error } = await supabase
       .from('job_applications')
       .insert({
         job_post_id: jobId,
-        worker_id: user.id,
+        worker_id: user.id, // Usar el user.id directamente
         cover_letter: applicationData?.cover_letter,
         expected_salary: applicationData?.expected_salary,
         status: 'pending'
@@ -187,7 +212,12 @@ export const jobService = {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error applying to job:', error);
+      throw error;
+    }
+    
+    console.log('Application submitted successfully:', data);
     return data;
   },
 
