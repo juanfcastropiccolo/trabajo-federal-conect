@@ -85,11 +85,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: result.user.email,
           role: result.user.role
         });
-        
         // Actualizar estado inmediatamente (no esperar al listener)
         setUser(result.user);
+        // Ya que el usuario está autenticado, finalizamos cualquier estado de carga
+        setIsLoading(false);
       }
-      
       return result;
       
     } catch (error) {

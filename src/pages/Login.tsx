@@ -18,22 +18,33 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('🔄 Login: handleSubmit start');
     setIsLoading(true);
 
     try {
-      await login(email, password);
+      console.log('🔄 Login: calling auth.login with', { email });
+      const result = await login(email, password);
+      console.log('✅ Login: auth.login resolved', result);
+      if (result.error || !result.user) {
+        console.warn('⚠️ Login: auth.login returned error or null user', result);
+        throw new Error(result.error || 'Error al iniciar sesión');
+      }
+      console.log('🔄 Login: navigating to /dashboard');
       toast({
         title: "¡Bienvenido!",
         description: "Has iniciado sesión correctamente.",
       });
       navigate('/dashboard');
-    } catch (error) {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error inesperado';
+      console.error('❌ Login: handleSubmit catch', err);
       toast({
         title: "Error",
-        description: "Email o contraseña incorrectos.",
+        description: message,
         variant: "destructive",
       });
     } finally {
+      console.log('🔄 Login: handleSubmit finally, clearing isLoading');
       setIsLoading(false);
     }
   };
