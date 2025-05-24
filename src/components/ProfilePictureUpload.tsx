@@ -4,12 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { StorageService } from '@/services/storageService';
-import { Camera, Upload, Loader2, User, Building } from 'lucide-react';
+import { Camera, Upload, Loader2, User, Building, Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { UserRole } from '@/types';
 
 interface ProfilePictureUploadProps {
   currentAvatar?: string;
-  userRole: 'worker' | 'company';
+  userRole: UserRole;
   userName: string;
   onAvatarUpdate: (newAvatarUrl: string) => void;
 }
@@ -89,17 +90,24 @@ const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
 
   const displayAvatar = previewUrl || currentAvatar;
 
+  const getRoleIcon = () => {
+    switch (userRole) {
+      case 'company':
+        return <Building className="w-16 h-16" />;
+      case 'admin':
+        return <Shield className="w-16 h-16" />;
+      default:
+        return <User className="w-16 h-16" />;
+    }
+  };
+
   return (
     <div className="flex flex-col items-center space-y-4">
       <div className="relative group">
         <Avatar className="h-32 w-32 cursor-pointer" onClick={triggerFileSelect}>
           <AvatarImage src={displayAvatar} alt={userName} />
           <AvatarFallback className="text-2xl">
-            {userRole === 'company' ? (
-              <Building className="w-16 h-16" />
-            ) : (
-              <User className="w-16 h-16" />
-            )}
+            {getRoleIcon()}
           </AvatarFallback>
         </Avatar>
         
