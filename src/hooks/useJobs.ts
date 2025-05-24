@@ -75,11 +75,11 @@ export const useApplyToJob = () => {
         description: "Tu postulación ha sido enviada exitosamente.",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Error applying to job:', error);
       toast({
         title: "Error",
-        description: "No se pudo enviar la postulación. Intentá nuevamente.",
+        description: error.message || "No se pudo enviar la postulación. Intentá nuevamente.",
         variant: "destructive",
       });
     },

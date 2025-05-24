@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { notificationService } from './notificationService';
 import { Job } from '../types';
@@ -176,7 +177,7 @@ export const jobService = {
 
     console.log('Applying to job:', { jobId, userId: user.id, applicationData });
 
-    // Primero verificar que el usuario sea un trabajador y obtener su worker profile
+    // Obtener el worker_profile_id del usuario actual
     const { data: workerProfile, error: workerError } = await supabase
       .from('worker_profiles')
       .select('id')
@@ -188,23 +189,26 @@ export const jobService = {
       throw new Error('No se encontró el perfil de trabajador. Debes completar tu perfil antes de postularte.');
     }
 
-    // Verificar si ya se postuló a este empleo
+    console.log('Worker profile found:', workerProfile);
+
+    // Verificar si ya se postuló a este empleo usando el worker_profile.id
     const { data: existingApplication, error: checkError } = await supabase
       .from('job_applications')
       .select('id')
       .eq('job_post_id', jobId)
-      .eq('worker_id', user.id)
+      .eq('worker_id', workerProfile.id)
       .single();
 
     if (existingApplication) {
       throw new Error('Ya te postulaste a este empleo.');
     }
 
+    // Crear la aplicación usando el worker_profile.id
     const { data, error } = await supabase
       .from('job_applications')
       .insert({
         job_post_id: jobId,
-        worker_id: user.id, // Usar el user.id directamente
+        worker_id: workerProfile.id, // Usar el worker_profile.id en lugar del user.id
         cover_letter: applicationData?.cover_letter,
         expected_salary: applicationData?.expected_salary,
         status: 'pending'
@@ -222,6 +226,18 @@ export const jobService = {
   },
 
   async getUserApplications(userId: string) {
+    // Primero obtener el worker_profile.id
+    const { data: workerProfile, error: workerError } = await supabase
+      .from('worker_profiles')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+
+    if (workerError || !workerProfile) {
+      console.log('No worker profile found for user:', userId);
+      return [];
+    }
+
     const { data, error } = await supabase
       .from('job_applications')
       .select(`
@@ -234,7 +250,7 @@ export const jobService = {
           )
         )
       `)
-      .eq('worker_id', userId);
+      .eq('worker_id', workerProfile.id); // Usar worker_profile.id
 
     if (error) throw error;
     return data;
