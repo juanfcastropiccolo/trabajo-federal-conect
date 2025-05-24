@@ -20,6 +20,7 @@ const Jobs = () => {
   const [locationFilter, setLocationFilter] = useState('all');
   const [workTypeFilter, setWorkTypeFilter] = useState('all');
   const [locationTypeFilter, setLocationTypeFilter] = useState('all');
+  const [loadingJobId, setLoadingJobId] = useState<string | null>(null);
 
   const filteredJobs = jobs.filter(job => {
     const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -36,10 +37,13 @@ const Jobs = () => {
 
   const handleApply = async (jobId: string) => {
     if (user && user.role === 'worker') {
+      setLoadingJobId(jobId);
       try {
         await applyMutation.mutateAsync({ jobId });
       } catch (error) {
         console.error('Error applying to job:', error);
+      } finally {
+        setLoadingJobId(null);
       }
     }
   };
@@ -201,10 +205,10 @@ const Jobs = () => {
                             <Button 
                               size="sm"
                               onClick={() => handleApply(job.id)}
-                              disabled={isApplied(job.id) || applyMutation.isPending}
+                              disabled={isApplied(job.id) || loadingJobId === job.id}
                               className={isApplied(job.id) ? 'bg-gray-400' : ''}
                             >
-                              {applyMutation.isPending ? (
+                              {loadingJobId === job.id ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
                               ) : isApplied(job.id) ? 'Ya Postulado' : 'Postularme'}
                             </Button>
