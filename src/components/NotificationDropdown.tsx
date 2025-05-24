@@ -20,13 +20,14 @@ const NotificationDropdown = () => {
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
-      case 'job_posted':
+      case 'new_job_match':
         return <Briefcase className="w-4 h-4 text-blue-600" />;
-      case 'application_received':
       case 'application_status':
         return <User className="w-4 h-4 text-green-600" />;
-      case 'message':
+      case 'new_message':
         return <MessageSquare className="w-4 h-4 text-purple-600" />;
+      case 'profile_view':
+        return <User className="w-4 h-4 text-orange-600" />;
       default:
         return <Settings className="w-4 h-4 text-gray-600" />;
     }

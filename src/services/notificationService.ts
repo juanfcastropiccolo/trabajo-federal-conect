@@ -5,7 +5,7 @@ export interface CreateNotificationData {
   user_id: string;
   title: string;
   message: string;
-  type: 'job_posted' | 'application_received' | 'application_status' | 'message' | 'system';
+  type: 'new_job_match' | 'application_status' | 'new_message' | 'profile_view' | 'system';
   related_id?: string;
   related_type?: string;
 }
@@ -88,7 +88,7 @@ export const notificationService = {
         user_id: worker.id,
         title: 'Nueva Oferta Laboral',
         message: `${jobData.company_profiles?.company_name || 'Una empresa'} publicó: ${jobData.title}`,
-        type: 'job_posted' as const,
+        type: 'new_job_match' as const,
         related_id: jobData.id,
         related_type: 'job_post'
       }));
@@ -110,7 +110,7 @@ export const notificationService = {
       .from('notifications')
       .select('*')
       .eq('user_id', userId)
-      .eq('type', 'job_posted')
+      .eq('type', 'new_job_match')
       .eq('is_read', false)
       .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()); // Últimas 24 horas
 
@@ -129,7 +129,7 @@ export const notificationService = {
         user_id: userId,
         title: 'Nuevas Ofertas Laborales',
         message: `${unreadJobNotifications.length} empresas publicaron nuevos empleos. ¡Tu próximo empleo te está esperando!`,
-        type: 'job_posted',
+        type: 'new_job_match',
         related_type: 'multiple_jobs'
       });
     }
