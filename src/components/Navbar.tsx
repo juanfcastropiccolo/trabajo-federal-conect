@@ -1,4 +1,3 @@
-
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -10,7 +9,8 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { Bell, MessageSquare, Settings, LogOut, Home, Briefcase, User } from 'lucide-react';
+import { MessageSquare, Settings, LogOut, Home, Briefcase, User } from 'lucide-react';
+import NotificationDropdown from './NotificationDropdown';
 
 interface NavbarProps {
   variant?: 'landing' | 'app';
@@ -81,12 +81,7 @@ const Navbar: React.FC<NavbarProps> = ({ variant = 'app' }) => {
           </div>
 
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="sm" className="relative">
-              <Bell className="w-5 h-5" />
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">
-                2
-              </span>
-            </Button>
+            <NotificationDropdown />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

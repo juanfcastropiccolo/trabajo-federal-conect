@@ -1,4 +1,6 @@
+
 import { supabase } from '@/integrations/supabase/client';
+import { notificationService } from './notificationService';
 import { Job } from '../types';
 
 export interface CreateJobData {
@@ -33,7 +35,7 @@ export const jobService = {
     // Primero, buscar el perfil de empresa del usuario
     const { data: companyProfile, error: companyError } = await supabase
       .from('company_profiles')
-      .select('id')
+      .select('id, company_name')
       .eq('user_id', user.id)
       .single();
 
@@ -44,7 +46,7 @@ export const jobService = {
 
     // Convertir strings a arrays para los campos que lo requieren
     const processedData = {
-      company_id: companyProfile.id, // Usar el ID del perfil de empresa, no del usuario
+      company_id: companyProfile.id,
       title: jobData.title,
       description: jobData.description,
       requirements: jobData.requirements ? [jobData.requirements] : null,
@@ -69,7 +71,14 @@ export const jobService = {
     const { data, error } = await supabase
       .from('job_posts')
       .insert(processedData)
-      .select()
+      .select(`
+        *,
+        company_profiles (
+          company_name,
+          logo_url,
+          industry
+        )
+      `)
       .single();
 
     if (error) {
@@ -78,6 +87,19 @@ export const jobService = {
     }
     
     console.log('Job created successfully:', data);
+
+    // Crear notificaciones para trabajadores después de crear el empleo
+    try {
+      await notificationService.notifyWorkersOfNewJob({
+        ...data,
+        company_profiles: companyProfile
+      });
+      console.log('Notifications sent successfully');
+    } catch (notificationError) {
+      console.error('Error sending notifications:', notificationError);
+      // No lanzar error para no afectar la creación del empleo
+    }
+    
     return data;
   },
 
@@ -112,6 +134,26 @@ export const jobService = {
       `)
       .eq('company_id', companyId)
       .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data;
+  },
+
+  async getJobById(jobId: string) {
+    const { data, error } = await supabase
+      .from('job_posts')
+      .select(`
+        *,
+        company_profiles (
+          company_name,
+          logo_url,
+          industry,
+          description,
+          website
+        )
+      `)
+      .eq('id', jobId)
+      .single();
 
     if (error) throw error;
     return data;
