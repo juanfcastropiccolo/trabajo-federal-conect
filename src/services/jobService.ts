@@ -28,9 +28,21 @@ export const jobService = {
 
     console.log('Creating job with data:', jobData);
 
+    // Primero, buscar el perfil de empresa del usuario
+    const { data: companyProfile, error: companyError } = await supabase
+      .from('company_profiles')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (companyError || !companyProfile) {
+      console.error('Company profile not found:', companyError);
+      throw new Error('No se encontró el perfil de empresa. Asegúrate de completar tu perfil de empresa primero.');
+    }
+
     // Convertir strings a arrays para los campos que lo requieren
     const processedData = {
-      company_id: user.id,
+      company_id: companyProfile.id, // Usar el ID del perfil de empresa, no del usuario
       title: jobData.title,
       description: jobData.description,
       requirements: jobData.requirements ? [jobData.requirements] : null,
