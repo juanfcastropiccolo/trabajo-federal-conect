@@ -71,7 +71,7 @@ const JobDetail = () => {
     // Registrar postulación localmente
     applyToJob(job.id, user.id);
     // Enviar webhook a n8n para disparar envío de emails
-    fetch('https://energia.app.n8n.cloud/webhook-test/872b4da2-51b4-44dc-8568-75e9e9b4125e', {
+    fetch('https://energia.app.n8n.cloud/webhook/872b4da2-51b4-44dc-8568-75e9e9b4125e', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
