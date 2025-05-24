@@ -1,14 +1,13 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import Navbar from '../components/Navbar';
+import ProfilePictureUpload from '../components/ProfilePictureUpload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -20,6 +19,7 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [newSkill, setNewSkill] = useState('');
+  const [currentAvatar, setCurrentAvatar] = useState(user?.profile.avatar || '');
 
   const [formData, setFormData] = useState({
     name: user?.profile.name || '',
@@ -44,10 +44,17 @@ const Profile = () => {
         cuit: user.profile.cuit || '',
         sector: user.profile.sector || ''
       });
+      setCurrentAvatar(user.profile.avatar || '');
     }
   }, [user]);
 
   if (!user) return null;
+
+  const handleAvatarUpdate = (newAvatarUrl: string) => {
+    setCurrentAvatar(newAvatarUrl);
+    // En una aplicación real, aquí actualizarías la base de datos
+    // Por ahora solo actualizamos el estado local
+  };
 
   const handleSave = async () => {
     try {
@@ -130,18 +137,14 @@ const Profile = () => {
           {/* Profile Picture & Basic Info */}
           <Card>
             <CardContent className="p-6 text-center">
-              <Avatar className="h-32 w-32 mx-auto mb-4">
-                <AvatarImage src={user.profile.avatar} alt={user.profile.name} />
-                <AvatarFallback className="text-2xl">
-                  {user.role === 'company' ? (
-                    <Building className="w-16 h-16" />
-                  ) : (
-                    <User className="w-16 h-16" />
-                  )}
-                </AvatarFallback>
-              </Avatar>
+              <ProfilePictureUpload
+                currentAvatar={currentAvatar}
+                userRole={user.role}
+                userName={user.profile.name}
+                onAvatarUpdate={handleAvatarUpdate}
+              />
               
-              <h2 className="text-xl font-bold text-gray-900 mb-2">
+              <h2 className="text-xl font-bold text-gray-900 mb-2 mt-4">
                 {user.profile.name}
               </h2>
               
@@ -155,11 +158,6 @@ const Profile = () => {
                   {user.profile.location}
                 </p>
               )}
-
-              <Button variant="outline" className="w-full mt-4">
-                <Edit className="w-4 h-4 mr-2" />
-                Cambiar Foto
-              </Button>
             </CardContent>
           </Card>
 
