@@ -1,0 +1,144 @@
+
+import { supabase } from '@/integrations/supabase/client';
+import { Job } from '../types';
+
+export interface CreateJobData {
+  title: string;
+  description: string;
+  requirements?: string;
+  responsibilities?: string;
+  salary_min?: number;
+  salary_max?: number;
+  work_type: 'full-time' | 'part-time' | 'contract' | 'temporary';
+  location_type: 'onsite' | 'remote' | 'hybrid';
+  province?: string;
+  city?: string;
+  address?: string;
+  positions_available?: number;
+  application_deadline?: string;
+  start_date?: string;
+  end_date?: string;
+  urgency?: 'low' | 'medium' | 'high' | 'urgent';
+}
+
+export const jobService = {
+  async createJob(jobData: CreateJobData) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuario no autenticado');
+
+    const { data, error } = await supabase
+      .from('job_posts')
+      .insert({
+        company_id: user.id,
+        title: jobData.title,
+        description: jobData.description,
+        requirements: jobData.requirements,
+        responsibilities: jobData.responsibilities,
+        salary_min: jobData.salary_min,
+        salary_max: jobData.salary_max,
+        work_type: jobData.work_type,
+        location_type: jobData.location_type,
+        province: jobData.province,
+        city: jobData.city,
+        address: jobData.address,
+        positions_available: jobData.positions_available || 1,
+        application_deadline: jobData.application_deadline,
+        start_date: jobData.start_date,
+        end_date: jobData.end_date,
+        urgency: jobData.urgency || 'medium',
+        status: 'active'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async getPublicJobs() {
+    const { data, error } = await supabase
+      .from('job_posts')
+      .select(`
+        *,
+        company_profiles (
+          company_name,
+          logo_url,
+          industry
+        )
+      `)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data;
+  },
+
+  async getCompanyJobs(companyId: string) {
+    const { data, error } = await supabase
+      .from('job_posts')
+      .select(`
+        *,
+        company_profiles (
+          company_name,
+          logo_url,
+          industry
+        )
+      `)
+      .eq('company_id', companyId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data;
+  },
+
+  async updateJobStatus(jobId: string, status: 'active' | 'paused' | 'closed') {
+    const { data, error } = await supabase
+      .from('job_posts')
+      .update({ status })
+      .eq('id', jobId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async applyToJob(jobId: string, applicationData?: { cover_letter?: string; expected_salary?: number }) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuario no autenticado');
+
+    const { data, error } = await supabase
+      .from('job_applications')
+      .insert({
+        job_post_id: jobId,
+        worker_id: user.id,
+        cover_letter: applicationData?.cover_letter,
+        expected_salary: applicationData?.expected_salary,
+        status: 'pending'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  async getUserApplications(userId: string) {
+    const { data, error } = await supabase
+      .from('job_applications')
+      .select(`
+        *,
+        job_posts (
+          title,
+          company_id,
+          company_profiles (
+            company_name
+          )
+        )
+      `)
+      .eq('worker_id', userId);
+
+    if (error) throw error;
+    return data;
+  }
+};

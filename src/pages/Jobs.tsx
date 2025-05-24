@@ -1,7 +1,6 @@
 
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 import Navbar from '../components/Navbar';
 import { Button } from '@/components/ui/button';
@@ -9,58 +8,49 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, MapPin, DollarSign, Clock, Filter, Briefcase } from 'lucide-react';
+import { Search, MapPin, DollarSign, Clock, Filter, Briefcase, Loader2 } from 'lucide-react';
+import { useJobs, useApplyToJob, useUserApplications } from '../hooks/useJobs';
 
 const Jobs = () => {
-  const { jobs, applyToJob, applications } = useData();
+  const { data: jobs = [], isLoading } = useJobs();
+  const applyMutation = useApplyToJob();
   const { user } = useAuth();
+  const { data: userApplications = [] } = useUserApplications(user?.id || '');
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [locationFilter, setLocationFilter] = useState('all');
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  const [contractTypeFilter, setContractTypeFilter] = useState('all');
-
-  const userApplications = applications.filter(app => app.userId === user?.id);
+  const [workTypeFilter, setWorkTypeFilter] = useState('all');
+  const [locationTypeFilter, setLocationTypeFilter] = useState('all');
 
   const filteredJobs = jobs.filter(job => {
     const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         job.company?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         job.company_profiles?.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          job.description.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesLocation = locationFilter === 'all' || job.location.toLowerCase().includes(locationFilter.toLowerCase());
-    const matchesCategory = categoryFilter === 'all' || job.category === categoryFilter;
-    const matchesContractType = contractTypeFilter === 'all' || job.contractType === contractTypeFilter;
+    const matchesLocation = locationFilter === 'all' || 
+                           (job.province && job.province.toLowerCase().includes(locationFilter.toLowerCase()));
+    const matchesWorkType = workTypeFilter === 'all' || job.work_type === workTypeFilter;
+    const matchesLocationType = locationTypeFilter === 'all' || job.location_type === locationTypeFilter;
 
-    return matchesSearch && matchesLocation && matchesCategory && matchesContractType && job.status === 'open';
+    return matchesSearch && matchesLocation && matchesWorkType && matchesLocationType;
   });
 
-  const handleApply = (jobId: string) => {
-    if (user) {
-      // Registrar postulación localmente
-      applyToJob(jobId, user.id);
-      // Enviar webhook a n8n para disparar envío de emails
-      const job = jobs.find(j => j.id === jobId);
-      fetch('https://energia.app.n8n.cloud/webhook/872b4da2-51b4-44dc-8568-75e9e9b4125e', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jobId: jobId,
-          jobTitle: job?.title,
-          companyId: job?.companyId,
-          companyName: job?.company?.name,
-          applicantId: user.id,
-          applicantName: user.profile.name,
-          applicantEmail: user.email
-        })
-      }).catch(error => console.error('Webhook n8n error:', error));
+  const handleApply = async (jobId: string) => {
+    if (user && user.role === 'worker') {
+      try {
+        await applyMutation.mutateAsync({ jobId });
+      } catch (error) {
+        console.error('Error applying to job:', error);
+      }
     }
   };
 
   const isApplied = (jobId: string) => {
-    return userApplications.some(app => app.jobId === jobId);
+    return userApplications.some(app => app.job_post_id === jobId);
   };
 
-  const categories = [...new Set(jobs.map(job => job.category))];
-  const locations = [...new Set(jobs.map(job => job.location.split(',')[1]?.trim() || job.location))];
+  const provinces = [...new Set(jobs.map(job => job.province).filter(Boolean))];
+  const workTypes = [...new Set(jobs.map(job => job.work_type))];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -90,31 +80,17 @@ const Jobs = () => {
               
               <Select value={locationFilter} onValueChange={setLocationFilter}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Ubicación" />
+                  <SelectValue placeholder="Provincia" />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
-                  <SelectItem value="all">Todas las ubicaciones</SelectItem>
-                  {locations.map(location => (
-                    <SelectItem key={location} value={location}>{location}</SelectItem>
+                  <SelectItem value="all">Todas las provincias</SelectItem>
+                  {provinces.map(province => (
+                    <SelectItem key={province} value={province}>{province}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
 
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Categoría" />
-                </SelectTrigger>
-                <SelectContent className="bg-white">
-                  <SelectItem value="all">Todas las categorías</SelectItem>
-                  {categories.map(category => (
-                    <SelectItem key={category} value={category}>
-                      {category.charAt(0).toUpperCase() + category.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={contractTypeFilter} onValueChange={setContractTypeFilter}>
+              <Select value={workTypeFilter} onValueChange={setWorkTypeFilter}>
                 <SelectTrigger>
                   <SelectValue placeholder="Tipo de trabajo" />
                 </SelectTrigger>
@@ -126,6 +102,18 @@ const Jobs = () => {
                   <SelectItem value="temporary">Temporal</SelectItem>
                 </SelectContent>
               </Select>
+
+              <Select value={locationTypeFilter} onValueChange={setLocationTypeFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Modalidad" />
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  <SelectItem value="all">Todas las modalidades</SelectItem>
+                  <SelectItem value="onsite">Presencial</SelectItem>
+                  <SelectItem value="remote">Remoto</SelectItem>
+                  <SelectItem value="hybrid">Híbrido</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>
@@ -133,7 +121,7 @@ const Jobs = () => {
         {/* Results */}
         <div className="flex justify-between items-center mb-6">
           <div className="text-gray-600">
-            {filteredJobs.length} empleos encontrados
+            {isLoading ? 'Cargando...' : `${filteredJobs.length} empleos encontrados`}
           </div>
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4" />
@@ -153,7 +141,11 @@ const Jobs = () => {
 
         {/* Job Cards */}
         <div className="space-y-4">
-          {filteredJobs.length === 0 ? (
+          {isLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin" />
+            </div>
+          ) : filteredJobs.length === 0 ? (
             <Card>
               <CardContent className="p-12 text-center">
                 <Briefcase className="w-16 h-16 mx-auto text-gray-400 mb-4" />
@@ -168,8 +160,8 @@ const Jobs = () => {
                   onClick={() => {
                     setSearchTerm('');
                     setLocationFilter('all');
-                    setCategoryFilter('all');
-                    setContractTypeFilter('all');
+                    setWorkTypeFilter('all');
+                    setLocationTypeFilter('all');
                   }}
                 >
                   Limpiar Filtros
@@ -188,8 +180,14 @@ const Jobs = () => {
                             {job.title}
                           </h3>
                           <div className="flex items-center gap-2 mb-2">
-                            <span className="text-blue-600 font-medium">{job.company?.name}</span>
-                            <Badge variant="secondary">{job.category}</Badge>
+                            <span className="text-blue-600 font-medium">
+                              {job.company_profiles?.company_name}
+                            </span>
+                            <Badge variant="secondary">
+                              {job.location_type === 'onsite' ? 'Presencial' :
+                               job.location_type === 'remote' ? 'Remoto' : 
+                               job.location_type === 'hybrid' ? 'Híbrido' : job.location_type}
+                            </Badge>
                           </div>
                         </div>
                         
@@ -204,10 +202,12 @@ const Jobs = () => {
                             <Button 
                               size="sm"
                               onClick={() => handleApply(job.id)}
-                              disabled={isApplied(job.id)}
+                              disabled={isApplied(job.id) || applyMutation.isPending}
                               className={isApplied(job.id) ? 'bg-gray-400' : ''}
                             >
-                              {isApplied(job.id) ? 'Ya Postulado' : 'Postularme'}
+                              {applyMutation.isPending ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : isApplied(job.id) ? 'Ya Postulado' : 'Postularme'}
                             </Button>
                           )}
                         </div>
@@ -218,47 +218,31 @@ const Jobs = () => {
                       </p>
 
                       <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-4">
-                        <div className="flex items-center gap-1">
-                          <MapPin className="w-4 h-4" />
-                          {job.location}
-                        </div>
-                        {job.salaryFrom && (
+                        {job.city && job.province && (
+                          <div className="flex items-center gap-1">
+                            <MapPin className="w-4 h-4" />
+                            {job.city}, {job.province}
+                          </div>
+                        )}
+                        {job.salary_min && (
                           <div className="flex items-center gap-1">
                             <DollarSign className="w-4 h-4" />
-                            ${job.salaryFrom.toLocaleString()}
-                            {job.salaryTo && ` - $${job.salaryTo.toLocaleString()}`}
+                            ${job.salary_min.toLocaleString()}
+                            {job.salary_max && ` - $${job.salary_max.toLocaleString()}`}
                           </div>
                         )}
                         <div className="flex items-center gap-1">
                           <Clock className="w-4 h-4" />
-                          {job.contractType === 'full-time' ? 'Tiempo Completo' : 
-                           job.contractType === 'part-time' ? 'Medio Tiempo' : 
-                           job.contractType === 'contract' ? 'Por Contrato' : 
-                           job.contractType === 'temporary' ? 'Temporal' : job.contractType}
+                          {job.work_type === 'full-time' ? 'Tiempo Completo' : 
+                           job.work_type === 'part-time' ? 'Medio Tiempo' : 
+                           job.work_type === 'contract' ? 'Por Contrato' : 
+                           job.work_type === 'temporary' ? 'Temporal' : job.work_type}
                         </div>
                       </div>
 
-                      {job.requirements && job.requirements.length > 0 && (
-                        <div className="mb-4">
-                          <h4 className="font-medium text-gray-900 mb-2">Requisitos:</h4>
-                          <div className="flex flex-wrap gap-1">
-                            {job.requirements.slice(0, 3).map((req, index) => (
-                              <Badge key={index} variant="outline" className="text-xs">
-                                {req}
-                              </Badge>
-                            ))}
-                            {job.requirements.length > 3 && (
-                              <Badge variant="outline" className="text-xs">
-                                +{job.requirements.length - 3} más
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
                       <div className="flex justify-between items-center text-xs text-gray-500">
                         <span>
-                          Publicado el {new Date(job.createdAt).toLocaleDateString()}
+                          Publicado el {new Date(job.created_at).toLocaleDateString()}
                         </span>
                         {isApplied(job.id) && (
                           <Badge className="bg-green-100 text-green-800">

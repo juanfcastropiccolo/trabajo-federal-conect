@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -10,9 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { User, Job, Application } from '../types';
-import { useData } from '../contexts/DataContext';
-import { useToast } from '@/hooks/use-toast';
+import { User } from '../types';
+import { useCreateJob, useCompanyJobs } from '../hooks/useJobs';
 import { 
   Plus, 
   Briefcase, 
@@ -25,87 +23,76 @@ import {
   DollarSign,
   Clock,
   Edit,
-  Archive
+  Archive,
+  Loader2
 } from 'lucide-react';
 
 interface CompanyDashboardProps {
   user: User;
-  jobs: Job[];
-  applications: Application[];
+  jobs: any[];
+  applications: any[];
 }
 
-const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ user, jobs, applications }) => {
-  const { createJob, updateJobStatus } = useData();
-  const { toast } = useToast();
+const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ user }) => {
+  const createJobMutation = useCreateJob();
+  const { data: companyJobs = [], isLoading: jobsLoading } = useCompanyJobs(user.id);
   const [isCreateJobOpen, setIsCreateJobOpen] = useState(false);
 
   const [newJob, setNewJob] = useState({
     title: '',
     description: '',
-    category: '',
-    salaryFrom: '',
-    salaryTo: '',
-    contractType: 'full-time' as 'full-time' | 'part-time' | 'contract' | 'temporary',
-    location: '',
     requirements: '',
-    benefits: ''
+    responsibilities: '',
+    salary_min: '',
+    salary_max: '',
+    work_type: 'full-time' as 'full-time' | 'part-time' | 'contract' | 'temporary',
+    location_type: 'onsite' as 'onsite' | 'remote' | 'hybrid',
+    province: '',
+    city: '',
+    address: '',
+    positions_available: '1',
+    urgency: 'medium' as 'low' | 'medium' | 'high' | 'urgent'
   });
 
-  // Get company's jobs
-  const companyJobs = jobs.filter(job => job.companyId === user.id);
-  
-  // Get applications for company jobs
-  const companyApplications = applications.filter(app => 
-    companyJobs.some(job => job.id === app.jobId)
-  );
-
-  const handleCreateJob = (e: React.FormEvent) => {
+  const handleCreateJob = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const jobData = {
-      ...newJob,
-      companyId: user.id,
-      salaryFrom: newJob.salaryFrom ? parseInt(newJob.salaryFrom) : undefined,
-      salaryTo: newJob.salaryTo ? parseInt(newJob.salaryTo) : undefined,
-      requirements: newJob.requirements.split(',').map(r => r.trim()),
-      benefits: newJob.benefits.split(',').map(b => b.trim()),
-      status: 'open' as const,
-      company: {
-        name: user.profile.name,
-        avatar: user.profile.avatar || '',
-        sector: user.profile.sector || 'General'
-      }
-    };
+    try {
+      await createJobMutation.mutateAsync({
+        title: newJob.title,
+        description: newJob.description,
+        requirements: newJob.requirements || undefined,
+        responsibilities: newJob.responsibilities || undefined,
+        salary_min: newJob.salary_min ? parseInt(newJob.salary_min) : undefined,
+        salary_max: newJob.salary_max ? parseInt(newJob.salary_max) : undefined,
+        work_type: newJob.work_type,
+        location_type: newJob.location_type,
+        province: newJob.province || undefined,
+        city: newJob.city || undefined,
+        address: newJob.address || undefined,
+        positions_available: parseInt(newJob.positions_available),
+        urgency: newJob.urgency
+      });
 
-    createJob(jobData);
-    
-    toast({
-      title: "¡Empleo publicado!",
-      description: "Tu oferta laboral ha sido publicada exitosamente.",
-    });
-
-    setIsCreateJobOpen(false);
-    setNewJob({
-      title: '',
-      description: '',
-      category: '',
-      salaryFrom: '',
-      salaryTo: '',
-      contractType: 'full-time' as 'full-time' | 'part-time' | 'contract' | 'temporary',
-      location: '',
-      requirements: '',
-      benefits: ''
-    });
-  };
-
-  const getJobStats = (jobId: string) => {
-    const jobApplications = applications.filter(app => app.jobId === jobId);
-    return {
-      total: jobApplications.length,
-      pending: jobApplications.filter(app => app.status === 'pending').length,
-      viewed: jobApplications.filter(app => app.status === 'viewed').length,
-      contacted: jobApplications.filter(app => app.status === 'contacted').length
-    };
+      setIsCreateJobOpen(false);
+      setNewJob({
+        title: '',
+        description: '',
+        requirements: '',
+        responsibilities: '',
+        salary_min: '',
+        salary_max: '',
+        work_type: 'full-time',
+        location_type: 'onsite',
+        province: '',
+        city: '',
+        address: '',
+        positions_available: '1',
+        urgency: 'medium'
+      });
+    } catch (error) {
+      console.error('Error creating job:', error);
+    }
   };
 
   return (
@@ -148,20 +135,21 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ user, jobs, applica
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="job-category">Categoría</Label>
-                    <Select value={newJob.category} onValueChange={(value) => setNewJob({...newJob, category: value})}>
+                    <Label htmlFor="work-type">Tipo de Trabajo</Label>
+                    <Select 
+                      value={newJob.work_type} 
+                      onValueChange={(value: 'full-time' | 'part-time' | 'contract' | 'temporary') => 
+                        setNewJob({...newJob, work_type: value})
+                      }
+                    >
                       <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar categoría" />
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-white">
-                        <SelectItem value="logistica">Logística</SelectItem>
-                        <SelectItem value="limpieza">Limpieza</SelectItem>
-                        <SelectItem value="gastronomia">Gastronomía</SelectItem>
-                        <SelectItem value="ventas">Ventas</SelectItem>
-                        <SelectItem value="seguridad">Seguridad</SelectItem>
-                        <SelectItem value="construccion">Construcción</SelectItem>
-                        <SelectItem value="administracion">Administración</SelectItem>
-                        <SelectItem value="otro">Otro</SelectItem>
+                        <SelectItem value="full-time">Tiempo Completo</SelectItem>
+                        <SelectItem value="part-time">Medio Tiempo</SelectItem>
+                        <SelectItem value="contract">Por Contrato</SelectItem>
+                        <SelectItem value="temporary">Temporal</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -179,86 +167,96 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ user, jobs, applica
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="salary-from">Salario Desde</Label>
-                    <Input
-                      id="salary-from"
-                      type="number"
-                      placeholder="80000"
-                      value={newJob.salaryFrom}
-                      onChange={(e) => setNewJob({...newJob, salaryFrom: e.target.value})}
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="salary-to">Salario Hasta</Label>
-                    <Input
-                      id="salary-to"
-                      type="number"
-                      placeholder="120000"
-                      value={newJob.salaryTo}
-                      onChange={(e) => setNewJob({...newJob, salaryTo: e.target.value})}
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="contract-type">Tipo de Contrato</Label>
-                    <Select 
-                      value={newJob.contractType} 
-                      onValueChange={(value: 'full-time' | 'part-time' | 'contract' | 'temporary') => 
-                        setNewJob({...newJob, contractType: value})
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white">
-                        <SelectItem value="full-time">Tiempo Completo</SelectItem>
-                        <SelectItem value="part-time">Medio Tiempo</SelectItem>
-                        <SelectItem value="contract">Por Contrato</SelectItem>
-                        <SelectItem value="temporary">Temporal</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="job-location">Ubicación</Label>
-                  <Input
-                    id="job-location"
-                    placeholder="Ciudad, Provincia"
-                    value={newJob.location}
-                    onChange={(e) => setNewJob({...newJob, location: e.target.value})}
-                    required
-                  />
-                </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="job-requirements">Requisitos</Label>
                   <Textarea
                     id="job-requirements"
-                    placeholder="Separalos con comas: Puntualidad, Trabajo en equipo, Disponibilidad horaria..."
+                    placeholder="Describí los requisitos necesarios para el puesto..."
                     value={newJob.requirements}
                     onChange={(e) => setNewJob({...newJob, requirements: e.target.value})}
-                    rows={2}
+                    rows={3}
                   />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="salary-min">Salario Mínimo</Label>
+                    <Input
+                      id="salary-min"
+                      type="number"
+                      placeholder="80000"
+                      value={newJob.salary_min}
+                      onChange={(e) => setNewJob({...newJob, salary_min: e.target.value})}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="salary-max">Salario Máximo</Label>
+                    <Input
+                      id="salary-max"
+                      type="number"
+                      placeholder="120000"
+                      value={newJob.salary_max}
+                      onChange={(e) => setNewJob({...newJob, salary_max: e.target.value})}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="province">Provincia</Label>
+                    <Input
+                      id="province"
+                      placeholder="Buenos Aires"
+                      value={newJob.province}
+                      onChange={(e) => setNewJob({...newJob, province: e.target.value})}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="city">Ciudad</Label>
+                    <Input
+                      id="city"
+                      placeholder="Ciudad Autónoma de Buenos Aires"
+                      value={newJob.city}
+                      onChange={(e) => setNewJob({...newJob, city: e.target.value})}
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="job-benefits">Beneficios</Label>
-                  <Textarea
-                    id="job-benefits"
-                    placeholder="Separalos con comas: Obra social, Vacaciones pagas, Capacitación..."
-                    value={newJob.benefits}
-                    onChange={(e) => setNewJob({...newJob, benefits: e.target.value})}
-                    rows={2}
-                  />
+                  <Label htmlFor="location-type">Modalidad</Label>
+                  <Select 
+                    value={newJob.location_type} 
+                    onValueChange={(value: 'onsite' | 'remote' | 'hybrid') => 
+                      setNewJob({...newJob, location_type: value})
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      <SelectItem value="onsite">Presencial</SelectItem>
+                      <SelectItem value="remote">Remoto</SelectItem>
+                      <SelectItem value="hybrid">Híbrido</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="flex gap-2 pt-4">
-                  <Button type="submit" className="flex-1">
-                    Publicar Oferta
+                  <Button 
+                    type="submit" 
+                    className="flex-1"
+                    disabled={createJobMutation.isPending}
+                  >
+                    {createJobMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Publicando...
+                      </>
+                    ) : (
+                      'Publicar Oferta'
+                    )}
                   </Button>
                   <Button type="button" variant="outline" onClick={() => setIsCreateJobOpen(false)}>
                     Cancelar
@@ -288,7 +286,7 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ user, jobs, applica
             <div className="flex items-center">
               <Users className="h-8 w-8 text-green-600" />
               <div className="ml-4">
-                <p className="text-2xl font-bold">{companyApplications.length}</p>
+                <p className="text-2xl font-bold">0</p>
                 <p className="text-gray-600 text-sm">Postulaciones</p>
               </div>
             </div>
@@ -300,9 +298,7 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ user, jobs, applica
             <div className="flex items-center">
               <MessageSquare className="h-8 w-8 text-purple-600" />
               <div className="ml-4">
-                <p className="text-2xl font-bold">
-                  {companyApplications.filter(a => a.status === 'contacted').length}
-                </p>
+                <p className="text-2xl font-bold">0</p>
                 <p className="text-gray-600 text-sm">En Proceso</p>
               </div>
             </div>
@@ -314,9 +310,7 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ user, jobs, applica
             <div className="flex items-center">
               <TrendingUp className="h-8 w-8 text-orange-600" />
               <div className="ml-4">
-                <p className="text-2xl font-bold">
-                  {companyApplications.filter(a => a.status === 'hired').length}
-                </p>
+                <p className="text-2xl font-bold">0</p>
                 <p className="text-gray-600 text-sm">Contratados</p>
               </div>
             </div>
@@ -387,7 +381,11 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ user, jobs, applica
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {companyJobs.length === 0 ? (
+              {jobsLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-8 h-8 animate-spin" />
+                </div>
+              ) : companyJobs.length === 0 ? (
                 <div className="text-center py-8">
                   <Briefcase className="w-12 h-12 mx-auto text-gray-400 mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -403,86 +401,51 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ user, jobs, applica
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {companyJobs.map((job) => {
-                    const stats = getJobStats(job.id);
-                    
-                    return (
-                      <div key={job.id} className="border rounded-lg p-4">
-                        <div className="flex justify-between items-start mb-3">
-                          <div>
-                            <h3 className="font-semibold text-lg">{job.title}</h3>
-                            <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
+                  {companyJobs.map((job) => (
+                    <div key={job.id} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 className="font-semibold text-lg">{job.title}</h3>
+                          <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
+                            {job.city && job.province && (
                               <span className="flex items-center gap-1">
                                 <MapPin className="w-3 h-3" />
-                                {job.location}
+                                {job.city}, {job.province}
                               </span>
-                              {job.salaryFrom && (
-                                <span className="flex items-center gap-1">
-                                  <DollarSign className="w-3 h-3" />
-                                  ${job.salaryFrom.toLocaleString()}
-                                  {job.salaryTo && ` - $${job.salaryTo.toLocaleString()}`}
-                                </span>
-                              )}
+                            )}
+                            {job.salary_min && (
                               <span className="flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                {job.contractType === 'full-time' ? 'Tiempo Completo' : 
-                                 job.contractType === 'part-time' ? 'Medio Tiempo' : 
-                                 job.contractType}
+                                <DollarSign className="w-3 h-3" />
+                                ${job.salary_min.toLocaleString()}
+                                {job.salary_max && ` - $${job.salary_max.toLocaleString()}`}
                               </span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge 
-                              variant={job.status === 'open' ? 'default' : 'secondary'}
-                              className={job.status === 'open' ? 'bg-green-100 text-green-800' : ''}
-                            >
-                              {job.status === 'open' ? 'Activo' : 'Cerrado'}
-                            </Badge>
+                            )}
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {job.work_type === 'full-time' ? 'Tiempo Completo' : 
+                               job.work_type === 'part-time' ? 'Medio Tiempo' : 
+                               job.work_type}
+                            </span>
                           </div>
                         </div>
-
-                        <div className="grid grid-cols-4 gap-4 mb-4">
-                          <div className="text-center">
-                            <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
-                            <div className="text-xs text-gray-600">Total</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-                            <div className="text-xs text-gray-600">Nuevas</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-2xl font-bold text-blue-600">{stats.viewed}</div>
-                            <div className="text-xs text-gray-600">Vistas</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-2xl font-bold text-green-600">{stats.contacted}</div>
-                            <div className="text-xs text-gray-600">En Proceso</div>
-                          </div>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <Link to={`/trabajo/${job.id}`}>
-                            <Button variant="outline" size="sm">
-                              <Eye className="w-4 h-4 mr-1" />
-                              Ver Detalles
-                            </Button>
-                          </Link>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => updateJobStatus(job.id, job.status === 'open' ? 'closed' : 'open')}
-                          >
-                            <Archive className="w-4 h-4 mr-1" />
-                            {job.status === 'open' ? 'Pausar' : 'Activar'}
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <MessageSquare className="w-4 h-4 mr-1" />
-                            Candidatos ({stats.total})
-                          </Button>
-                        </div>
+                        <Badge 
+                          variant={job.status === 'active' ? 'default' : 'secondary'}
+                          className={job.status === 'active' ? 'bg-green-100 text-green-800' : ''}
+                        >
+                          {job.status === 'active' ? 'Activo' : 'Pausado'}
+                        </Badge>
                       </div>
-                    );
-                  })}
+
+                      <div className="flex gap-2">
+                        <Link to={`/trabajo/${job.id}`}>
+                          <Button variant="outline" size="sm">
+                            <Eye className="w-4 h-4 mr-1" />
+                            Ver Detalles
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>

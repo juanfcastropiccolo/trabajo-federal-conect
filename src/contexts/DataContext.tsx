@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState } from 'react';
 import { Job, Application, Message } from '../types';
-import { mockJobs, mockApplications, mockMessages } from '../data/mockData';
+import { mockApplications, mockMessages } from '../data/mockData';
 
 interface DataContextType {
   jobs: Job[];
@@ -24,28 +24,17 @@ export const useData = () => {
 };
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [jobs, setJobs] = useState<Job[]>(mockJobs);
+  // Mantener los datos mock para compatibilidad con Dashboard.tsx
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [applications, setApplications] = useState<Application[]>(mockApplications);
   const [messages, setMessages] = useState<Message[]>(mockMessages);
 
   const createJob = (jobData: Omit<Job, 'id' | 'createdAt'>) => {
-    const newJob: Job = {
-      ...jobData,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString()
-    };
-    setJobs(prev => [newJob, ...prev]);
+    console.log('createJob called - this is now handled by Supabase');
   };
 
   const applyToJob = (jobId: string, userId: string) => {
-    const newApplication: Application = {
-      id: Date.now().toString(),
-      jobId,
-      userId,
-      status: 'pending',
-      createdAt: new Date().toISOString()
-    };
-    setApplications(prev => [newApplication, ...prev]);
+    console.log('applyToJob called - this is now handled by Supabase');
   };
 
   const sendMessage = (messageData: Omit<Message, 'id' | 'timestamp'>) => {
@@ -58,9 +47,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateJobStatus = (jobId: string, status: 'open' | 'closed' | 'archived') => {
-    setJobs(prev => prev.map(job => 
-      job.id === jobId ? { ...job, status } : job
-    ));
+    console.log('updateJobStatus called - this is now handled by Supabase');
   };
 
   return (
