@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { StorageService } from './storageService';
 
@@ -49,11 +48,11 @@ export const chatService = {
       .from('conversations')
       .select(`
         *,
-        company_profiles!conversations_company_id_fkey (
+        company_profiles!company_id (
           company_name,
           avatar_url
         ),
-        worker_profiles!conversations_worker_id_fkey (
+        worker_profiles!worker_id (
           first_name,
           last_name,
           profile_picture_url
@@ -92,7 +91,7 @@ export const chatService = {
             ...lastMessageResult.data,
             message_type: lastMessageResult.data.message_type as 'text' | 'file' | 'emoji'
           } : null
-        } as Conversation;
+        } as unknown as Conversation;
       })
     );
 
@@ -110,11 +109,11 @@ export const chatService = {
       })
       .select(`
         *,
-        company_profiles!conversations_company_id_fkey (
+        company_profiles!company_id (
           company_name,
           avatar_url
         ),
-        worker_profiles!conversations_worker_id_fkey (
+        worker_profiles!worker_id (
           first_name,
           last_name,
           profile_picture_url
@@ -126,7 +125,7 @@ export const chatService = {
     return {
       ...data,
       status: data.status as 'active' | 'closed'
-    } as Conversation;
+    } as unknown as Conversation;
   },
 
   // Obtener conversación existente
@@ -135,11 +134,11 @@ export const chatService = {
       .from('conversations')
       .select(`
         *,
-        company_profiles!conversations_company_id_fkey (
+        company_profiles!company_id (
           company_name,
           avatar_url
         ),
-        worker_profiles!conversations_worker_id_fkey (
+        worker_profiles!worker_id (
           first_name,
           last_name,
           profile_picture_url
@@ -153,7 +152,7 @@ export const chatService = {
     return data ? {
       ...data,
       status: data.status as 'active' | 'closed'
-    } as Conversation : null;
+    } as unknown as Conversation : null;
   },
 
   // Cerrar conversación (solo empresas)
