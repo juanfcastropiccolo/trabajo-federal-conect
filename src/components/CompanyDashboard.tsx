@@ -35,7 +35,7 @@ interface CompanyDashboardProps {
 
 const CompanyDashboard: React.FC<CompanyDashboardProps> = ({ user }) => {
   const createJobMutation = useCreateJob();
-  const { data: companyJobs = [], isLoading: jobsLoading } = useCompanyJobs(user.id);
+  const { data: companyJobs = [], isLoading: jobsLoading } = useCompanyJobs();
   const [isCreateJobOpen, setIsCreateJobOpen] = useState(false);
 
   const [newJob, setNewJob] = useState({

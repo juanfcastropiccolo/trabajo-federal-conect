@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Job } from '../types';
 
@@ -22,6 +21,9 @@ export interface CreateJobData {
 }
 
 export const jobService = {
+  // Exponer supabase para uso en hooks
+  supabase,
+
   async createJob(jobData: CreateJobData) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Usuario no autenticado');

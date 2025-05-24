@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { jobService, CreateJobData } from '../services/jobService';
 import { useToast } from './use-toast';
+import { useAuth } from '../contexts/AuthContext';
 
 export const useJobs = () => {
   return useQuery({
@@ -10,11 +11,26 @@ export const useJobs = () => {
   });
 };
 
-export const useCompanyJobs = (companyId: string) => {
+export const useCompanyJobs = () => {
+  const { user } = useAuth();
+  
   return useQuery({
-    queryKey: ['company-jobs', companyId],
-    queryFn: () => jobService.getCompanyJobs(companyId),
-    enabled: !!companyId,
+    queryKey: ['company-jobs', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      
+      // Buscar jobs de la empresa basado en el user_id
+      const { data: companyProfile } = await jobService.supabase
+        .from('company_profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (!companyProfile) return [];
+      
+      return jobService.getCompanyJobs(companyProfile.id);
+    },
+    enabled: !!user?.id,
   });
 };
 
