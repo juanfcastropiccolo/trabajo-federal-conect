@@ -8,7 +8,9 @@ interface NotificationPayload {
   jobId: string;
   jobTitle: string;
   companyId: string;
+  companyName: string;
   companyEmail?: string;
+  conversationId: string;
   timestamp?: string;
 }
 
@@ -34,7 +36,15 @@ export const NotificationService = {
         },
         body: JSON.stringify({
           type: "job_application",
-          ...payload,
+          applicant_id: payload.applicantId,
+          applicant_email: payload.applicantEmail,
+          applicant_name: payload.applicantName,
+          job_id: payload.jobId,
+          job_title: payload.jobTitle,
+          company_id: payload.companyId,
+          company_name: payload.companyName,
+          company_email: payload.companyEmail,
+          conversation_id: payload.conversationId,
           timestamp: payload.timestamp || new Date().toISOString(),
           triggered_from: window.location.origin,
         }),
@@ -52,6 +62,7 @@ export const NotificationService = {
       analytics.trackEvent('job_application_notification_sent', {
         job_id: payload.jobId,
         applicant_id: payload.applicantId,
+        conversation_id: payload.conversationId,
       });
       
     } catch (error) {

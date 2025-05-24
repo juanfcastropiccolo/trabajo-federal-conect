@@ -250,6 +250,9 @@ export const jobService = {
     
     console.log('Application submitted successfully:', data);
 
+    // Generar un ID de conversación único
+    const conversationId = `conv_${Date.now()}_${workerProfile.id}_${jobData.company_id}`;
+
     // Enviar notificación a n8n sobre la nueva postulación
     try {
       await NotificationService.sendJobApplicationNotification({
@@ -259,9 +262,11 @@ export const jobService = {
         jobId: jobId,
         jobTitle: jobData.title,
         companyId: jobData.company_id,
+        companyName: jobData.company_profiles.company_name,
         companyEmail: companyUser?.email || '',
+        conversationId: conversationId,
       });
-      console.log('n8n webhook notification sent successfully');
+      console.log('n8n webhook notification sent successfully with conversation ID:', conversationId);
     } catch (webhookError) {
       console.error('Error sending webhook notification:', webhookError);
       // No lanzar error para no afectar la postulación
