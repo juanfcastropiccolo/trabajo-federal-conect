@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { notificationService } from './notificationService';
+import { NotificationService } from './api/notificationService';
 import { Job } from '../types';
 
 export interface CreateJobData {
@@ -180,7 +181,7 @@ export const jobService = {
     // Obtener el worker_profile_id del usuario actual
     const { data: workerProfile, error: workerError } = await supabase
       .from('worker_profiles')
-      .select('id')
+      .select('id, first_name, last_name')
       .eq('user_id', user.id)
       .single();
 
@@ -203,12 +204,38 @@ export const jobService = {
       throw new Error('Ya te postulaste a este empleo.');
     }
 
+    // Obtener información del trabajo y la empresa para el webhook
+    const { data: jobData, error: jobError } = await supabase
+      .from('job_posts')
+      .select(`
+        *,
+        company_profiles (
+          company_name,
+          user_id,
+          contact_phone
+        )
+      `)
+      .eq('id', jobId)
+      .single();
+
+    if (jobError || !jobData) {
+      console.error('Job not found:', jobError);
+      throw new Error('No se encontró el empleo.');
+    }
+
+    // Obtener email de la empresa
+    const { data: companyUser, error: companyUserError } = await supabase
+      .from('users')
+      .select('email')
+      .eq('id', jobData.company_profiles.user_id)
+      .single();
+
     // Crear la aplicación usando el worker_profile.id
     const { data, error } = await supabase
       .from('job_applications')
       .insert({
         job_post_id: jobId,
-        worker_id: workerProfile.id, // Usar el worker_profile.id en lugar del user.id
+        worker_id: workerProfile.id,
         cover_letter: applicationData?.cover_letter,
         expected_salary: applicationData?.expected_salary,
         status: 'pending'
@@ -222,6 +249,24 @@ export const jobService = {
     }
     
     console.log('Application submitted successfully:', data);
+
+    // Enviar notificación a n8n sobre la nueva postulación
+    try {
+      await NotificationService.sendJobApplicationNotification({
+        applicantId: workerProfile.id,
+        applicantEmail: user.email || '',
+        applicantName: `${workerProfile.first_name} ${workerProfile.last_name}`,
+        jobId: jobId,
+        jobTitle: jobData.title,
+        companyId: jobData.company_id,
+        companyEmail: companyUser?.email || '',
+      });
+      console.log('n8n webhook notification sent successfully');
+    } catch (webhookError) {
+      console.error('Error sending webhook notification:', webhookError);
+      // No lanzar error para no afectar la postulación
+    }
+    
     return data;
   },
 

@@ -25,24 +25,28 @@ export const NotificationService = {
     const startTime = Date.now();
     
     try {
-      console.log("Sending job application notification:", payload);
+      console.log("Sending job application notification to n8n:", payload);
       
       const response = await fetch(webhookUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        mode: "no-cors", // Handle CORS issues
         body: JSON.stringify({
+          type: "job_application",
           ...payload,
           timestamp: payload.timestamp || new Date().toISOString(),
           triggered_from: window.location.origin,
         }),
       });
 
-      // Since we're using no-cors, we won't get a proper response status
-      // Log success and track analytics
-      console.log("Job application notification sent successfully");
+      console.log("n8n webhook response status:", response.status);
+      
+      if (!response.ok) {
+        throw new Error(`Webhook failed with status: ${response.status}`);
+      }
+      
+      console.log("Job application notification sent successfully to n8n");
       
       analytics.trackApiRequest('n8n/job-application', true, Date.now() - startTime);
       analytics.trackEvent('job_application_notification_sent', {
@@ -51,13 +55,13 @@ export const NotificationService = {
       });
       
     } catch (error) {
-      console.error("Error sending job application notification:", error);
+      console.error("Error sending job application notification to n8n:", error);
       
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       analytics.trackApiRequest('n8n/job-application', false, Date.now() - startTime, errorMessage);
       
-      // Don't throw error to avoid blocking the application process
-      // Just log it for debugging
+      // Re-lanzar el error para debugging pero sin bloquear la aplicación
+      throw error;
     }
   },
   
@@ -71,14 +75,13 @@ export const NotificationService = {
     const startTime = Date.now();
     
     try {
-      console.log(`Sending ${type} notification:`, data);
+      console.log(`Sending ${type} notification to n8n:`, data);
       
-      await fetch(webhookUrl, {
+      const response = await fetch(webhookUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        mode: "no-cors",
         body: JSON.stringify({
           notification_type: type,
           data,
@@ -87,14 +90,22 @@ export const NotificationService = {
         }),
       });
 
-      console.log(`${type} notification sent successfully`);
+      console.log(`n8n webhook response status for ${type}:`, response.status);
+      
+      if (!response.ok) {
+        throw new Error(`Webhook failed with status: ${response.status}`);
+      }
+
+      console.log(`${type} notification sent successfully to n8n`);
       analytics.trackApiRequest(`n8n/${type}`, true, Date.now() - startTime);
       
     } catch (error) {
-      console.error(`Error sending ${type} notification:`, error);
+      console.error(`Error sending ${type} notification to n8n:`, error);
       
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       analytics.trackApiRequest(`n8n/${type}`, false, Date.now() - startTime, errorMessage);
+      
+      throw error;
     }
   }
 };
